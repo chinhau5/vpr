@@ -664,6 +664,11 @@ binary_search_place_and_route(struct s_placer_opts placer_opts,
 
     print_route(route_file);
 
+
+    dump_raw_routing_structs();
+
+    print_track_utilization();
+
 #ifdef CREATE_ECHO_FILES
     /* print_sink_delays("routing_sink_delays.echo"); */
 #endif /* CREATE_ECHO_FILES */

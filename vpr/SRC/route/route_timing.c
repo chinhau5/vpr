@@ -455,6 +455,8 @@ timing_driven_route_net(int inet,
  * route_tree structure is destroyed; only the traceback is needed at that  *
  * point.                                                                   */
 
+	    //we're done with routing ONE sink at this point in time
+
 	    rr_node_route_inf[inode].target_flag--;	/* Connected to this SINK. */
 	    new_route_start_tptr = update_traceback(current, inet);
 	    rt_node_of_sink[target_pin] = update_route_tree(current);
@@ -464,6 +466,8 @@ timing_driven_route_net(int inet,
 	    empty_heap();
 	    reset_path_costs();
 	}
+
+    //we're done with routing ALL the sinks
 
 /* For later timing analysis. */
 

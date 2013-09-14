@@ -169,6 +169,11 @@ main(int argc,
     int GraphPause;
 	clock_t begin, end;
 
+	/*read_raw_routing_structs();
+
+	    print_track_utilization();
+	return 0;*/
+
     /* Print title message */
     PrintTitle();
 
