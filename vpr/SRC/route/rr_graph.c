@@ -1959,7 +1959,7 @@ load_uniform_switch_pattern(INP t_type_ptr type,
 	    /* Bi-directional treats each track separately, uni-directional works with pairs of tracks */
 	    for(j = 0; j < (Fc / group_size); j++)
 		{
-		    f_track = (i * step_size) + (j * fc_step);
+		    f_track = (i * step_size) + (j * fc_step); //(i * step_size) controls the staggering between the pins
 		    itrack = ((int)f_track) * group_size;
 
 		    /* Catch possible floating point round error */

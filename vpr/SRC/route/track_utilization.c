@@ -118,6 +118,9 @@ void print_track_utilization() {
 	int length, index;
 	FILE *file;
 	int used;
+	int branch[BRANCH_ENUM_END];
+	int count[10];
+	char *branch_name[BRANCH_ENUM_END] = { "STRAIGHT", "LEFT", "RIGHT" };
 
 	used_branches = calloc(num_rr_nodes, sizeof(int *));
 	total_branches = (int *)calloc(num_rr_nodes, sizeof(int));
@@ -266,10 +269,38 @@ void print_track_utilization() {
 			average_utilization += (float)used/total_branches[i];
 			fprintf(file, "%d %d %.2f\n", used, total_branches[i], (float)used/total_branches[i]);
 		}
-
 	}
 
 	fprintf(file, "%.2f\n", average_utilization/num_used_rr_nodes);
+
+	for (i = 0; i < 5; i++) {
+		for (k = 0; k < BRANCH_ENUM_END; k++) {
+			branch[k] = 0;
+		}
+		count[i] = 0;
+
+		for (j = 0; j < num_rr_nodes; j++) {
+			if (i < track_length[j]) {
+				used = 0;
+				for (k = 0; k < BRANCH_ENUM_END; k++) {
+					if (used_branches[j][i][k] > 0) {
+						assert(used_branches[j][i][k] == 1);
+						branch[k]++;
+						used++;
+					}
+				}
+				if (used > 0) {
+					count[i]++;
+				}
+			}
+		}
+
+		for (k = 0; k < BRANCH_ENUM_END; k++) {
+			fprintf(file, "Percentage of nodes branching %s at [%d]: %.2f\n", branch_name[k], i, (float)branch[k]/count[i]);
+		}
+
+		fprintf(file, "\n");
+	}
 
 	fclose(file);
 
