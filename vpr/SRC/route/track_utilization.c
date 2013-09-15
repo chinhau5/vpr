@@ -10,7 +10,7 @@ void dump_raw_routing_structs()
 	int count;
 	struct s_trace *tptr;
 
-	file = fopen("/home/chinhau5/vbox_shared/routing_structs.dump", "wb");
+	file = fopen("routing_structs.dump", "wb");
 
 	if (!file) {
 		assert(0);
@@ -57,7 +57,7 @@ void read_raw_routing_structs()
 	int count;
 	struct s_trace *tptr;
 
-	file = fopen("/home/chinhau5/vbox_shared/routing_structs.dump", "rb");
+	file = fopen("routing_structs.dump", "rb");
 
 	if (!file) {
 		assert(0);
@@ -105,24 +105,22 @@ void read_raw_routing_structs()
 	fclose(file);
 }
 
-enum { BRANCH_STRAIGHT = 0, BRANCH_LEFT, BRANCH_RIGHT };
+enum { BRANCH_STRAIGHT = 0, BRANCH_LEFT, BRANCH_RIGHT, BRANCH_ENUM_END };
 
 void print_track_utilization() {
-	int inet, inode, ipin, bnum, ilow, jlow, node_block_pin, iclass;
-	int i, child_inode;
-	t_rr_type rr_type;
+	int inet, inode, child_inode;
+	int i, j, k;
 	struct s_trace *tptr;
-	int *total_branches, *used_branches;
+	int *total_branches, ***used_branches;
 	float average_utilization;
 	int num_used_rr_nodes;
+	int *track_length;
+	int length, index;
 	FILE *file;
 
-	used_branches = (int *)malloc(sizeof(float)*num_rr_nodes);
-	total_branches = (int *)malloc(sizeof(int)*num_rr_nodes);
-	memset(used_branches, 0, sizeof(float)*num_rr_nodes);
-	memset(total_branches, 0, sizeof(float)*num_rr_nodes);
-	num_used_rr_nodes = 0;
-	average_utilization = 0;
+	used_branches = calloc(num_rr_nodes, sizeof(int *));
+	total_branches = (int *)calloc(num_rr_nodes, sizeof(int));
+	track_length = (int *)calloc(num_rr_nodes, sizeof(int));
 
 	file = fopen("track_utilization.txt", "w");
 
@@ -132,16 +130,11 @@ void print_track_utilization() {
 
 			} else {
 				tptr = trace_head[inet];
-				//fprintf(file, "Net: %d\n", inet);
 
 				while (tptr != NULL) {
 					inode = tptr->index;
-					rr_type = rr_node[inode].type;
-					ilow = rr_node[inode].xlow;
-					jlow = rr_node[inode].ylow;
 
-
-					switch (rr_type) {
+					switch (rr_node[inode].type) {
 					case CHANX:
 					case CHANY:
 						if (total_branches[inode] == 0) {
@@ -151,11 +144,95 @@ void print_track_utilization() {
 									total_branches[inode]++;
 								}
 							}
+							if (rr_node[inode].type == CHANX) {
+								track_length[inode] = rr_node[inode].xhigh - rr_node[inode].xlow + 1;
+							} else {
+								assert(rr_node[inode].type == CHANY);
+								track_length[inode] = rr_node[inode].yhigh - rr_node[inode].ylow + 1;
+							}
+							assert(track_length[inode] <= 4);
+
+							used_branches[inode] = alloc_matrix(0, track_length[inode]-1, 0, BRANCH_ENUM_END-1, sizeof(int));
+							for (i = 0; i < track_length[inode]; i++) {
+								for (j = 0; j < BRANCH_ENUM_END; j++) {
+									used_branches[inode][i][j] = 0;
+								}
+							}
 						}
+						//we know rr_node[inode] is either CHANX or CHANY
 						if (tptr->next) {
 							child_inode = tptr->next->index;
-							if (rr_node[child_inode].type == CHANX || rr_node[child_inode].type == CHANY) {
-								used_branches[inode]++;
+							if (rr_node[inode].type == rr_node[child_inode].type) {
+								//rr_node[child_inode] is either CHANX or CHANY
+								if (rr_node[inode].type == CHANX) {
+									index = rr_node[inode].xhigh-rr_node[inode].xlow;
+
+									used_branches[inode][index][BRANCH_STRAIGHT] = 1;
+								} else {
+									assert(rr_node[inode].type == CHANY);
+
+									index = rr_node[inode].yhigh-rr_node[inode].ylow;
+
+									used_branches[inode][index][BRANCH_STRAIGHT] = 1;
+								}
+							} else {
+								if (rr_node[child_inode].type == CHANY) {
+									assert(rr_node[inode].type == CHANX);
+
+									length = rr_node[inode].xhigh - rr_node[inode].xlow + 1;
+
+									if (rr_node[inode].direction == INC_DIRECTION) {
+										index = rr_node[child_inode].xlow - rr_node[inode].xlow;
+
+										assert(index >= 0 && index < length);
+
+										if (rr_node[child_inode].direction == INC_DIRECTION) {
+											used_branches[inode][index][BRANCH_LEFT] = 1;
+										} else {
+											assert(rr_node[child_inode].direction == DEC_DIRECTION);
+											used_branches[inode][index][BRANCH_RIGHT] = 1;
+										}
+									} else {
+										index = rr_node[inode].xhigh - rr_node[child_inode].xlow - 1;
+
+										assert(index >= 0 && index < length);
+
+										if (rr_node[child_inode].direction == INC_DIRECTION) {
+											used_branches[inode][index][BRANCH_RIGHT] = 1;
+										} else {
+											assert(rr_node[child_inode].direction == DEC_DIRECTION);
+											used_branches[inode][index][BRANCH_LEFT] = 1;
+										}
+									}
+								} else if (rr_node[child_inode].type == CHANX) {
+									assert(rr_node[inode].type == CHANY);
+
+									length = rr_node[inode].yhigh - rr_node[inode].ylow + 1;
+
+									if (rr_node[inode].direction == INC_DIRECTION) {
+										index = rr_node[child_inode].ylow - rr_node[inode].ylow;
+
+										assert(index >= 0 && index < length);
+
+										if (rr_node[child_inode].direction == INC_DIRECTION) {
+											used_branches[inode][index][BRANCH_RIGHT] = 1;
+										} else {
+											assert(rr_node[child_inode].direction == DEC_DIRECTION);
+											used_branches[inode][index][BRANCH_LEFT] = 1;
+										}
+									} else {
+										index = rr_node[inode].yhigh - rr_node[child_inode].ylow - 1;
+
+										assert(index >= 0 && index < length);
+
+										if (rr_node[child_inode].direction == INC_DIRECTION) {
+											used_branches[inode][index][BRANCH_LEFT] = 1;
+										} else {
+											assert(rr_node[child_inode].direction == DEC_DIRECTION);
+											used_branches[inode][index][BRANCH_RIGHT] = 1;
+										}
+									}
+								}
 							}
 						}
 						break;
@@ -172,17 +249,22 @@ void print_track_utilization() {
 
 	average_utilization = 0;
 	num_used_rr_nodes = 0;
-	for (i = 0; i < num_rr_nodes; i++) {
-		if (used_branches[i] > 0) {
-			assert(used_branches[i] <= total_branches[i]);
-			fprintf(file, "%d %d %.2f\n", used_branches[i], total_branches[i], (float)used_branches[i]/total_branches[i]);
-			average_utilization += (float)used_branches[i]/total_branches[i];
-			num_used_rr_nodes++;
+	/*for (i = 0; i < num_rr_nodes; i++) {
+
+		for (j = 0; j < length; j++) {
+			for (k = 0; k < BRANCH_ENUM_END; k++) {
+				if (used_branches[i][j][k] > 0) {
+					assert(used_branches[i][j][k] == 1);
+
+				}
+			}
 		}
-	}
+	}*/
 
 	fprintf(file, "%.2f\n", average_utilization/num_used_rr_nodes);
 
 	fclose(file);
+
 	free(used_branches);
+	free(track_length);
 }
