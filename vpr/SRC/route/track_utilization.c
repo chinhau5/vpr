@@ -117,6 +117,7 @@ void print_track_utilization() {
 	int *track_length;
 	int length, index;
 	FILE *file;
+	int used;
 
 	used_branches = calloc(num_rr_nodes, sizeof(int *));
 	total_branches = (int *)calloc(num_rr_nodes, sizeof(int));
@@ -249,17 +250,24 @@ void print_track_utilization() {
 
 	average_utilization = 0;
 	num_used_rr_nodes = 0;
-	/*for (i = 0; i < num_rr_nodes; i++) {
-
-		for (j = 0; j < length; j++) {
+	for (i = 0; i < num_rr_nodes; i++) {
+		used = 0;
+		for (j = 0; j < track_length[i]; j++) {
 			for (k = 0; k < BRANCH_ENUM_END; k++) {
 				if (used_branches[i][j][k] > 0) {
 					assert(used_branches[i][j][k] == 1);
-
+					used++;
 				}
 			}
 		}
-	}*/
+		if (used > 0) {
+			num_used_rr_nodes++;
+			assert(used <= total_branches[i]);
+			average_utilization += (float)used/total_branches[i];
+			fprintf(file, "%d %d %.2f\n", used, total_branches[i], (float)used/total_branches[i]);
+		}
+
+	}
 
 	fprintf(file, "%.2f\n", average_utilization/num_used_rr_nodes);
 
