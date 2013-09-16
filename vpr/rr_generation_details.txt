@@ -1,0 +1,21 @@
+/* BUILDING PHASE */
+build_rr_xchan -> get_track_to_ipins (uses results from alloc_and_load_track_to_pin_lookup,    -> insert_in_edge_list
+                                      which uses result from alloc_and_load_pin_to_track_map)
+                  - controls TRACK to IPIN
+               -> get_track_to_tracks (uses result from load_sblock_pattern_lookup) -> get_unidir_track_to_chan_seg
+                  - controls TRACK to TRACK
+
+build_unidir_rr_opins -> get_unidir_opin_connections -> insert_in_edge_list
+                         - controls OPIN to TRACK
+                         - output is staggered with Fc_ofs[chan][seg]
+
+/* INIT PHASE */
+alloc_and_load_pin_to_track_map -> load_uniform_switch_pattern
+
+load_sblock_pattern_lookup
+ - sb[x][y][from_side][to_side][from_track]
+   - value is the starting to_track. Fs is handled in get_unidir_track_to_chan_seg
+   - 0 <= sb_x <= nx, 0 <= sb_y <= ny
+
+/* GENERAL INFO */
+chan_num >= 0, seg_num >= 1
