@@ -1375,6 +1375,7 @@ build_rr_xchan(INP int i,
 
 	    if(j > 0)
 		{
+	    	//branching down
 		    num_edges += get_track_to_tracks(j, istart, itrack, CHANX,
 						     j, CHANY, nx,
 						     nodes_per_chan,
@@ -1391,6 +1392,7 @@ build_rr_xchan(INP int i,
 
 	    if(j < ny)
 		{
+	    	//branching up
 		    num_edges += get_track_to_tracks(j, istart, itrack, CHANX,
 						     j + 1, CHANY, nx,
 						     nodes_per_chan,

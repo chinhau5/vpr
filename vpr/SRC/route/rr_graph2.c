@@ -1325,6 +1325,8 @@ get_track_to_tracks(INP int from_chan,
     struct s_ivec conn_tracks;
     boolean from_is_sbox, is_behind, Fs_clipped;
     enum e_side from_side_a, from_side_b, to_side;
+    int branch_direction;
+    boolean branch;
 
     assert(from_seg ==
 	   get_seg_start(seg_details, from_track, from_chan, from_seg));
@@ -1364,6 +1366,7 @@ get_track_to_tracks(INP int from_chan,
 	{
 	    /* If bending, check that they are adjacent to
 	     * our channel. */
+    	/*      bend down                bend up                      */
 	    assert((to_seg == from_chan) || (to_seg == (from_chan + 1)));
 	    if(to_seg > from_chan)
 		{
@@ -1403,10 +1406,12 @@ get_track_to_tracks(INP int from_chan,
 	    /* Figure out if we are at a sbox */
 	    from_is_sbox = is_sbox(from_chan, from_seg, from_sb, from_track,
 				   seg_details, directionality);
+	    branch_direction = get_branch_direction(from_chan, from_seg, from_sb, from_track,
+				   seg_details, directionality);
 	    /* end of wire must be an sbox */
 	    if(from_sb == from_end || from_sb == from_first)
 		{
-		    from_is_sbox = TRUE;	/* Endpoints always default to true */
+		    from_is_sbox = TRUE;	/* Endpoints always default to true *//*that's why the first and last number of <sb type="pattern"> doesn't matter*/
 		}
 
 	    /* to_chan is the current segment if different directions,
@@ -1448,7 +1453,28 @@ get_track_to_tracks(INP int from_chan,
 			       (DEC_DIRECTION ==
 				seg_details[from_track].direction))
 				{
-				    num_conn +=
+			    	branch = FALSE;
+			    	if (from_sb != from_first) { //not end sb
+			    		if (from_side_a == TOP) {
+							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == RIGHT && (branch_direction == 1 || branch_direction == 3)){
+								branch = TRUE;
+							}
+						} else {
+							assert(from_side_a == RIGHT);
+							if (to_side == TOP && (branch_direction == 2 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == BOTTOM && (branch_direction == 1 || branch_direction == 3)){
+								branch = TRUE;
+							}
+						}
+			    	} else {
+			    		branch = TRUE;
+			    	}
+
+			    	if (branch)
+			    	num_conn +=
 					get_unidir_track_to_chan_seg((from_sb
 								      ==
 								      from_first),
@@ -1502,6 +1528,27 @@ get_track_to_tracks(INP int from_chan,
 			       (INC_DIRECTION ==
 				seg_details[from_track].direction))
 				{
+			    	branch = FALSE;
+					if (from_sb != from_first) { //not end sb
+						if (from_side_b == BOTTOM) {
+							if (to_side == LEFT && (branch_direction == 1 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == RIGHT && (branch_direction == 2 || branch_direction == 3)){
+								branch = TRUE;
+							}
+						} else {
+							assert(from_side_b == LEFT);
+							if (to_side == TOP && (branch_direction == 1 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == BOTTOM && (branch_direction == 2 || branch_direction == 3)){
+								branch = TRUE;
+							}
+						}
+					} else {
+						branch = TRUE;
+					}
+
+			    	if (branch)
 				    num_conn +=
 					get_unidir_track_to_chan_seg((from_sb
 								      ==
@@ -1779,10 +1826,45 @@ is_sbox(INP int chan,
 	    ofs = length - ofs;
 	}
 
-    return seg_details[track].sb[ofs];
+    return seg_details[track].sb[ofs] > 0; //important modification to check whether there's a branch
 }
 
+int
+get_branch_direction(INP int chan,
+	INP int wire_seg,
+	INP int sb_seg,
+	INP int track,
+	INP t_seg_details * seg_details,
+	INP enum e_directionality directionality)
+{
 
+    int start, length, ofs, fac;
+
+    fac = 1;
+    if(UNI_DIRECTIONAL == directionality)
+	{
+	    fac = 2;
+	}
+
+    start = seg_details[track].start;
+    length = seg_details[track].length;
+
+    /* Make sure they gave us correct start */
+    wire_seg = get_seg_start(seg_details, track, chan, wire_seg);
+
+    ofs = sb_seg - wire_seg + 1;	/* Ofset 0 is behind us, so add 1 */
+
+    assert(ofs >= 0);
+    assert(ofs < (length + 1));
+
+    /* If unidir segment that is going backwards, we need to flip the ofs */
+    if((ofs % fac) > 0)
+	{
+	    ofs = length - ofs;
+	}
+
+    return seg_details[track].sb[ofs]; //important modification to check whether there's a branch
+}
 
 static void
 get_switch_type(boolean is_from_sbox,
@@ -2197,16 +2279,23 @@ load_sblock_pattern_lookup(INP int i,
 
 					    /* These are passing wires with sbox only for core sblocks
 					     * or passing and ending wires (for fringe cases). */
+				    	//TODO: modify here maybe?
 					    sblock_pattern[i][j][side_cw]
 						[to_side][itrack] =
 						(side_cw_incoming_wire_count *
 						 Fs_per_side) %
 						num_wire_muxes[to_side];
+
+					    //printf("[side_cw:%d] from_track: %d to_mux: %d\n", side_cw, itrack, (side_cw_incoming_wire_count *
+					    //						 2) %
+					    //						num_wire_muxes[to_side]);
 					    side_cw_incoming_wire_count++;
 					}
 				}
 			}
 		}
+
+	    //printf("side_cw_incoming_wire_count: %d\n\n", side_cw_incoming_wire_count);
 
 
 	    side_ccw_incoming_wire_count = 0;
@@ -2243,16 +2332,26 @@ load_sblock_pattern_lookup(INP int i,
 
 				    /* These are passing wires with sbox only for core sblocks
 				     * or passing and ending wires (for fringe cases). */
+			    	//TODO: modify here maybe?
 				    sblock_pattern[i][j][side_ccw][to_side]
 					[itrack] =
 					((side_ccw_incoming_wire_count +
 					  side_cw_incoming_wire_count) *
 					 Fs_per_side) %
 					num_wire_muxes[to_side];
+
+				    //printf("[side_ccw:%d] from_track: %d to_mux: %d\n", side_ccw, itrack, ((side_ccw_incoming_wire_count +
+					//		  side_cw_incoming_wire_count) *
+					//		 2) %
+					//		num_wire_muxes[to_side]);
+
 				    side_ccw_incoming_wire_count++;
 				}
 			}
 		}
+
+
+	    //printf("side_ccw_incoming_wire_count: %d\n\n", side_ccw_incoming_wire_count);
 
 
 	    opp_incoming_wire_count = 0;

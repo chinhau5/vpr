@@ -2087,22 +2087,8 @@ ProcessCB_SB(INOUTP ezxml_t Node, INOUTP boolean * list, INP int len)
 			{
 			case ' ':
 			    break;
-			case 'T':
-			case '1':
-			    if(i >= len)
-				{
-				    printf(ERRTAG
-					    "[LINE %d] CB or SB depopulation is too long. It "
-					    
-					    "should be (length) symbols for CBs and (length+1) "
-					     "symbols for SBs.\n", Node->line);
-				    exit(1);
-				}
-			    list[i] = TRUE;
-			    ++i;
-			    break;
-			case 'F':
-			case '0':
+			case 'N':
+			case '0': //no branches
 			    if(i >= len)
 				{
 				    printf(ERRTAG
@@ -2112,9 +2098,51 @@ ProcessCB_SB(INOUTP ezxml_t Node, INOUTP boolean * list, INP int len)
 						"symbols for SBs.\n", Node->line);
 				    exit(1);
 				}
-			    list[i] = FALSE;
+			    list[i] = 0;
 			    ++i;
 			    break;
+			case 'L':
+			case '1': //branching left only
+				if(i >= len)
+				{
+					printf(ERRTAG
+						"[LINE %d] CB or SB depopulation is too long. It "
+
+						"should be (length) symbols for CBs and (length+1) "
+						 "symbols for SBs.\n", Node->line);
+					exit(1);
+				}
+				list[i] = 1;
+				++i;
+				break;
+			case 'R':
+			case '2': //branching left only
+				if(i >= len)
+				{
+					printf(ERRTAG
+						"[LINE %d] CB or SB depopulation is too long. It "
+
+						"should be (length) symbols for CBs and (length+1) "
+						 "symbols for SBs.\n", Node->line);
+					exit(1);
+				}
+				list[i] = 2;
+				++i;
+				break;
+			case 'B':
+			case '3': //branching up and down
+				if(i >= len)
+				{
+					printf(ERRTAG
+						"[LINE %d] CB or SB depopulation is too long. It "
+
+						"should be (length) symbols for CBs and (length+1) "
+						 "symbols for SBs.\n", Node->line);
+					exit(1);
+				}
+				list[i] = 3;
+				++i;
+				break;
 			default:
 			    printf(ERRTAG "[LINE %d] Invalid character %c in CB or " 
 				    "SB depopulation list.\n", Node->line,
