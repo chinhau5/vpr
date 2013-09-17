@@ -111,6 +111,14 @@ static int *get_seg_track_counts(INP int num_sets,
 				 INP t_segment_inf * segment_inf,
 				 INP boolean use_full_seg_groups);
 
+static int *label_wire_muxes_by_type(INP int chan_num,
+			     INP int seg_num,
+			     INP t_seg_details * seg_details,
+			     INP int max_len,
+			     INP enum e_direction dir,
+			     INP int nodes_per_chan,
+			     OUTP int *num_wire_muxes);
+
 static int *label_wire_muxes(INP int chan_num,
 			     INP int seg_num,
 			     INP t_seg_details * seg_details,
@@ -708,7 +716,114 @@ get_bidir_opin_connections(INP int i,
     return num_conn;
 }
 
+int
+get_unidir_opin_connections_by_type(INP int chan,
+			    INP int seg,
+			    INP int Fc,
+			    INP t_rr_type chan_type,
+			    INP t_seg_details * seg_details,
+			    INOUTP t_linked_edge ** edge_list_ptr,
+			    INOUTP int **Fc_ofs,
+			    INOUTP boolean * rr_edge_done,
+			    INP int max_len,
+			    INP int nodes_per_chan,
+			    INP t_ivec *** rr_node_indices,
+			    OUTP boolean * Fc_clipped)
+{
+    /* Gets a linked list of Fc nodes to connect to in given
+     * chan seg.  Fc_ofs is used for the for the opin staggering
+     * pattern. */
 
+    int *inc_muxes = NULL;
+    int *dec_muxes = NULL;
+    int num_inc_muxes, num_dec_muxes, iconn;
+    int inc_inode, dec_inode;
+    int inc_mux, dec_mux;
+    int inc_track, dec_track;
+    int x, y;
+    int num_edges;
+
+    *Fc_clipped = FALSE;
+
+    /* Fc is assigned in pairs so check it is even. */
+    assert(Fc % 2 == 0);
+
+    /* get_rr_node_indices needs x and y coords. */
+    x = ((CHANX == chan_type) ? seg : chan);
+    y = ((CHANX == chan_type) ? chan : seg);
+
+    /* Get the lists of possible muxes. */
+    inc_muxes = label_wire_muxes_by_type(chan, seg, seg_details, max_len,
+				 INC_DIRECTION, nodes_per_chan,
+				 &num_inc_muxes);
+    dec_muxes =
+    label_wire_muxes_by_type(chan, seg, seg_details, max_len, DEC_DIRECTION,
+			 nodes_per_chan, &num_dec_muxes);
+
+    /* Clip Fc to the number of muxes. */
+    if(((Fc / 2) > num_inc_muxes) || ((Fc / 2) > num_dec_muxes))
+	{
+	    *Fc_clipped = TRUE;
+	    Fc = 2 * min(num_inc_muxes, num_dec_muxes);
+	}
+
+    /* Assign tracks to meet Fc demand */
+    num_edges = 0;
+    for(iconn = 0; iconn < (Fc / 2); ++iconn)
+	{
+	    /* Figure of the next mux to use */
+	    inc_mux = Fc_ofs[chan][seg] % num_inc_muxes;
+	    dec_mux = Fc_ofs[chan][seg] % num_dec_muxes;
+	    ++Fc_ofs[chan][seg];
+
+	    /* Figure out the track it corresponds to. */
+	    inc_track = inc_muxes[inc_mux];
+	    dec_track = dec_muxes[dec_mux];
+
+	    /* Figure the inodes of those muxes */
+	    inc_inode =
+		get_rr_node_index(x, y, chan_type, inc_track,
+				  rr_node_indices);
+	    dec_inode =
+		get_rr_node_index(x, y, chan_type, dec_track,
+				  rr_node_indices);
+
+	    /* Add to the list. */
+	    if(FALSE == rr_edge_done[inc_inode])
+		{
+		    rr_edge_done[inc_inode] = TRUE;
+		    *edge_list_ptr = insert_in_edge_list(*edge_list_ptr,
+							 inc_inode,
+							 seg_details
+							 [inc_track].
+							 opin_switch);
+		    ++num_edges;
+		}
+	    if(FALSE == rr_edge_done[dec_inode])
+		{
+		    rr_edge_done[dec_inode] = TRUE;
+		    *edge_list_ptr = insert_in_edge_list(*edge_list_ptr,
+							 dec_inode,
+							 seg_details
+							 [dec_track].
+							 opin_switch);
+		    ++num_edges;
+		}
+	}
+
+    if(inc_muxes)
+	{
+	    free(inc_muxes);
+	    inc_muxes = NULL;
+	}
+    if(dec_muxes)
+	{
+	    free(dec_muxes);
+	    dec_muxes = NULL;
+	}
+
+    return num_edges;
+}
 
 int
 get_unidir_opin_connections(INP int chan,
@@ -2219,7 +2334,7 @@ load_sblock_pattern_lookup(INP int i,
 						       &num_wire_muxes[side]);
 	}
 
-    printf("SB (%d,%d)\n", i, j);
+//    printf("SB (%d,%d)\n", i, j);
 
     for(to_side = 0; to_side < 4; to_side++)
 	{
@@ -2288,16 +2403,16 @@ load_sblock_pattern_lookup(INP int i,
 						 Fs_per_side) %
 						num_wire_muxes[to_side];
 
-					    printf("[side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, (side_cw_incoming_wire_count *
-					    						 2) %
-					    						num_wire_muxes[to_side]);
+//					    printf("[side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, (side_cw_incoming_wire_count *
+//					    						 2) %
+//					    						num_wire_muxes[to_side]);
 					    side_cw_incoming_wire_count++;
 					}
 				}
 			}
 		}
 
-	    printf("side_cw_incoming_wire_count: %d\n\n", side_cw_incoming_wire_count);
+//	    printf("side_cw_incoming_wire_count: %d\n\n", side_cw_incoming_wire_count);
 
 
 	    side_ccw_incoming_wire_count = 0;
@@ -2342,10 +2457,10 @@ load_sblock_pattern_lookup(INP int i,
 					 Fs_per_side) %
 					num_wire_muxes[to_side];
 
-				    printf("[side_ccw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_ccw, to_side, itrack, ((side_ccw_incoming_wire_count +
-							  side_cw_incoming_wire_count) *
-							 2) %
-							num_wire_muxes[to_side]);
+//				    printf("[side_ccw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_ccw, to_side, itrack, ((side_ccw_incoming_wire_count +
+//							  side_cw_incoming_wire_count) *
+//							 2) %
+//							num_wire_muxes[to_side]);
 
 				    side_ccw_incoming_wire_count++;
 				}
@@ -2353,7 +2468,7 @@ load_sblock_pattern_lookup(INP int i,
 		}
 
 
-	    printf("side_ccw_incoming_wire_count: %d\n\n", side_ccw_incoming_wire_count);
+//	    printf("side_ccw_incoming_wire_count: %d\n\n", side_ccw_incoming_wire_count);
 
 
 	    opp_incoming_wire_count = 0;
@@ -2440,6 +2555,117 @@ load_sblock_pattern_lookup(INP int i,
 }
 
 static int *
+label_wire_muxes_by_type(INP int chan_num,
+		 INP int seg_num,
+		 INP t_seg_details * seg_details,
+		 INP int max_len,
+		 INP enum e_direction dir,
+		 INP int nodes_per_chan,
+		 OUTP int *num_wire_muxes)
+{
+
+    /* Labels the muxes on that side (seg_num, chan_num, direction). The returned array
+     * maps a label to the actual track #: array[0] = <the track number of the first/lowest mux>
+     * This routine orders wire muxes by their natural order, i.e. track # */
+
+    int itrack, start, end, num_labels, pass;
+    int *labels = NULL;
+    boolean is_endpoint;
+    int i, num_seg_types, cur_seg_type;
+    int **labels_by_type;
+    int *num_labels_by_type, *num_labels_by_type_2;
+
+    num_seg_types = 0;
+    for (i = 0; i < nodes_per_chan; i++) {
+    	num_seg_types = max(seg_details[i].index, num_seg_types);
+    }
+    assert (num_seg_types == seg_details[nodes_per_chan-1].index);
+    num_seg_types++;
+
+    labels_by_type = (int *)my_malloc(sizeof(int *) * num_seg_types);
+    num_labels_by_type = (int *)my_malloc(sizeof(int) * num_seg_types);
+    for (i = 0; i < num_seg_types; i++) {
+		num_labels_by_type[i] = 0;
+	}
+    num_labels_by_type_2 = (int *)my_malloc(sizeof(int) * num_seg_types);
+
+    /* COUNT pass then a LOAD pass */
+    num_labels = 0;
+    for(pass = 0; pass < 2; ++pass)
+	{
+	    /* Alloc the list on LOAD pass */
+	    if(pass > 0)
+		{
+		    labels = (int *)my_malloc(sizeof(int) * num_labels);
+		    num_labels = 0;
+
+		    for (i = 0; i < num_seg_types; i++) {
+		    	labels_by_type[i] = my_malloc(sizeof(int *) * num_labels_by_type[i]);
+		    }
+		    for (i = 0; i < num_seg_types; i++) {
+		    	num_labels_by_type[i] = 0;
+			}
+		}
+
+	    /* Find the tracks that are starting. */
+		for(itrack = 0; itrack < nodes_per_chan; ++itrack)
+		{
+			start =
+			get_seg_start(seg_details, itrack, chan_num, seg_num);
+			end =
+			get_seg_end(seg_details, itrack, start, chan_num,
+					max_len);
+
+			/* Skip tracks going the wrong way */
+			if(seg_details[itrack].direction != dir)
+			{
+				continue;
+			}
+
+			/* Determine if we are a wire startpoint */
+			is_endpoint = (seg_num == start);
+			if(DEC_DIRECTION == seg_details[itrack].direction)
+			{
+				is_endpoint = (seg_num == end);
+			}
+
+			/* Count the labels and load if LOAD pass */
+			if(is_endpoint)
+			{
+				if(pass > 0)
+				{
+					labels_by_type[seg_details[itrack].index][num_labels_by_type[seg_details[itrack].index]] = itrack;
+				}
+				++num_labels_by_type[seg_details[itrack].index];
+				num_labels++;
+			}
+		}
+	}
+
+	//post process
+	cur_seg_type = 0;
+	for (i = 0; i < num_seg_types; i++) {
+		num_labels_by_type_2[i] = 0;
+	}
+	i = 0;
+	while (i < num_labels) {
+		if (num_labels_by_type_2[cur_seg_type] < num_labels_by_type[cur_seg_type]) {
+			labels[i++] = labels_by_type[cur_seg_type][num_labels_by_type_2[cur_seg_type]];
+			num_labels_by_type_2[cur_seg_type]++;
+		}
+		cur_seg_type = (cur_seg_type + 1) % num_seg_types;
+	}
+//    printf("[num_labels_after] ");
+//    for (i = 0; i < num_labels; i++) {
+//    	printf("%d ", labels[i]);
+//    }
+//    printf("\n");
+
+    *num_wire_muxes = num_labels;
+    return labels;
+}
+
+static int *
 label_wire_muxes_for_balance(INP int chan_num,
 			     INP int seg_num,
 			     INP t_seg_details * seg_details,
@@ -2514,13 +2740,13 @@ label_wire_muxes_for_balance(INP int chan_num,
 		    max_opin_mux_size = opin_mux_size[inode];
 		}
 	}
-    if(max_opin_mux_size > (min_opin_mux_size + 1))
-	{
-	    printf(ERRTAG "opin muxes are not balanced!\n");
-		printf("max_opin_mux_size %d min_opin_mux_size %d chan_type %d x %d y %d\n", 
-		max_opin_mux_size, min_opin_mux_size, chan_type, x, y);
-	    exit(1);
-	}
+//    if(max_opin_mux_size > (min_opin_mux_size + 1))
+//	{
+//	    printf(ERRTAG "opin muxes are not balanced!\n");
+//		printf("max_opin_mux_size %d min_opin_mux_size %d chan_type %d x %d y %d\n",
+//		max_opin_mux_size, min_opin_mux_size, chan_type, x, y);
+//	    exit(1);
+//	}
 	
     /* Create a new list that we will move the muxes with 'holes' to the start of list. */
     final_labels = (int *)my_malloc(sizeof(int) * num_labels);
@@ -2618,6 +2844,12 @@ label_wire_muxes(INP int chan_num,
 			}
 		}
 	}
+
+//    printf("[num_labels_before] ");
+//	for (itrack = 0; itrack < num_labels; itrack++) {
+//		printf("%d ", labels[itrack]);
+//	}
+//	printf("\n");
 
     *num_wire_muxes = num_labels;
     return labels;
