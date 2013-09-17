@@ -2219,6 +2219,8 @@ load_sblock_pattern_lookup(INP int i,
 						       &num_wire_muxes[side]);
 	}
 
+    printf("SB (%d,%d)\n", i, j);
+
     for(to_side = 0; to_side < 4; to_side++)
 	{
 	    /* Can't do anything if no muxes on this side. */
@@ -2286,16 +2288,16 @@ load_sblock_pattern_lookup(INP int i,
 						 Fs_per_side) %
 						num_wire_muxes[to_side];
 
-					    //printf("[side_cw:%d] from_track: %d to_mux: %d\n", side_cw, itrack, (side_cw_incoming_wire_count *
-					    //						 2) %
-					    //						num_wire_muxes[to_side]);
+					    printf("[side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, (side_cw_incoming_wire_count *
+					    						 2) %
+					    						num_wire_muxes[to_side]);
 					    side_cw_incoming_wire_count++;
 					}
 				}
 			}
 		}
 
-	    //printf("side_cw_incoming_wire_count: %d\n\n", side_cw_incoming_wire_count);
+	    printf("side_cw_incoming_wire_count: %d\n\n", side_cw_incoming_wire_count);
 
 
 	    side_ccw_incoming_wire_count = 0;
@@ -2340,10 +2342,10 @@ load_sblock_pattern_lookup(INP int i,
 					 Fs_per_side) %
 					num_wire_muxes[to_side];
 
-				    //printf("[side_ccw:%d] from_track: %d to_mux: %d\n", side_ccw, itrack, ((side_ccw_incoming_wire_count +
-					//		  side_cw_incoming_wire_count) *
-					//		 2) %
-					//		num_wire_muxes[to_side]);
+				    printf("[side_ccw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_ccw, to_side, itrack, ((side_ccw_incoming_wire_count +
+							  side_cw_incoming_wire_count) *
+							 2) %
+							num_wire_muxes[to_side]);
 
 				    side_ccw_incoming_wire_count++;
 				}
@@ -2351,7 +2353,7 @@ load_sblock_pattern_lookup(INP int i,
 		}
 
 
-	    //printf("side_ccw_incoming_wire_count: %d\n\n", side_ccw_incoming_wire_count);
+	    printf("side_ccw_incoming_wire_count: %d\n\n", side_ccw_incoming_wire_count);
 
 
 	    opp_incoming_wire_count = 0;
