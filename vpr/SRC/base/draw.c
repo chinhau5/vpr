@@ -92,6 +92,8 @@ static float *y_rr_node_bottom = NULL;
 static enum color_types *rr_node_color = NULL;
 static int old_num_rr_nodes = 0;
 
+static boolean highlighted = FALSE;
+
 /********************** Subroutines local to this module ********************/
 
 static void toggle_nets(void (*drawscreen) (void));
@@ -821,6 +823,38 @@ draw_rr(void)
 
     setlinestyle(SOLID);
     setlinewidth(0);
+
+    if (highlighted) {
+    	for(inode = 0; inode < num_rr_nodes; inode++) {
+    		//this check will do for now
+			if (rr_node_color[inode] == MAGENTA || rr_node_color[inode] == BLUE || rr_node_color[inode] == GREEN || rr_node_color[inode] == RED) {
+				switch (rr_node[inode].type) {
+				case SOURCE:
+				case SINK:
+				case IPIN:
+				case OPIN:
+					break;	/* Don't draw. */
+				case CHANX:
+					itrack = rr_node[inode].ptc_num;
+					draw_rr_chanx(inode, itrack);
+					draw_rr_edges(inode);
+					break;
+
+				case CHANY:
+					itrack = rr_node[inode].ptc_num;
+					draw_rr_chany(inode, itrack);
+					draw_rr_edges(inode);
+					break;
+				default:
+					printf
+					("Error in draw_rr:  Unexpected rr_node type: %d.\n",
+					 rr_node[inode].type);
+					exit(1);
+				}
+			}
+		}
+    	return;
+    }
 
     for(inode = 0; inode < num_rr_nodes; inode++)
 	{
@@ -2022,6 +2056,80 @@ highlight_nets(char *message)
     update_message (message);
 }
 
+void update_rr_node_color(int inode, int level)
+{
+	int edge;
+
+	if (level >= 0) {
+		switch (level) {
+		case 0:
+			rr_node_color[inode] = MAGENTA;
+			break;
+		case 1:
+			rr_node_color[inode] = BLUE;
+			break;
+		case 2:
+			rr_node_color[inode] = GREEN;
+			break;
+		case 3:
+			rr_node_color[inode] = RED;
+			break;
+		default:
+			rr_node_color[inode] = BLUE;
+			break;
+		}
+
+		for(edge = 0; edge < rr_node[inode].num_edges; edge++)
+		{
+			update_rr_node_color(rr_node[inode].edges[edge], level-1);
+		}
+	}
+}
+
+static void
+highlight_rr_nodes_by_level(float x, float y)
+{
+    int inode;
+    int hit = 0;
+    char message[250] = "";
+    int edge;
+    int i;
+    t_rr_node *cur_rr_node;
+
+    if(draw_rr_toggle == DRAW_NO_RR && ! show_nets)
+    {
+        update_message(default_message);
+        drawscreen();
+        return;
+    }
+
+    for(inode = 0; inode < num_rr_nodes; inode++)
+    {
+        if(x >= x_rr_node_left[inode] &&
+                x <= x_rr_node_right[inode] &&
+                y >= y_rr_node_bottom[inode] &&
+                y <= y_rr_node_top[inode])
+        {
+        	update_rr_node_color(inode, 3);
+			highlighted = TRUE;
+            hit = 1;
+        }
+    }
+
+    if (!hit) {
+        update_message(default_message);
+        drawscreen();
+        return;
+    }
+
+    if(show_nets)
+    {
+        highlight_nets(message);
+    }else
+        update_message(message);
+    drawscreen();
+}
+
 static void
 highlight_rr_nodes(float x, float y)
 {
@@ -2139,7 +2247,7 @@ highlight_blocks(float x,
 	
     if(!hit)
 	{
-	    highlight_rr_nodes(x, y);
+	    highlight_rr_nodes_by_level(x, y);
 	    /* update_message(default_message);
 	       drawscreen(); */
 	    return;
@@ -2231,6 +2339,8 @@ deselect_all(void)
 
     for (i = 0; i < num_rr_nodes; i++)
 	    rr_node_color[i] = BLACK;
+
+    highlighted = FALSE;
 }
 
 

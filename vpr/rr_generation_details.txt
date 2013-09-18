@@ -19,3 +19,5 @@ load_sblock_pattern_lookup
 
 /* GENERAL INFO */
 chan_num >= 0, seg_num >= 1
+
+update_screen -> draw_screen
