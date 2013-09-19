@@ -20,7 +20,8 @@ static int get_max_pins_per_net(void);
 static void add_route_tree_to_heap(t_rt_node * rt_node,
 				   int target_node,
 				   float target_criticality,
-				   float astar_fac);
+				   float astar_fac,
+				   t_segment_inf *segment_inf);
 
 static void timing_driven_expand_neighbours(struct s_heap *current,
 					    int inet,
@@ -28,12 +29,14 @@ static void timing_driven_expand_neighbours(struct s_heap *current,
 					    float criticality_fac,
 					    int target_node,
 					    float astar_fac,
-						int highfanout_rlim);
+						int highfanout_rlim,
+						t_segment_inf *segment_inf);
 
 static float get_timing_driven_expected_cost(int inode,
 					     int target_node,
 					     float criticality_fac,
-					     float R_upstream);
+					     float R_upstream,
+					     t_segment_inf *segment_inf);
 
 static int get_expected_segs_to_target(int inode,
 				       int target_node,
@@ -53,7 +56,8 @@ boolean
 try_timing_driven_route(struct s_router_opts router_opts,
 			float **net_slack,
 			float **net_delay,
-			t_ivec ** clb_opins_used_locally)
+			t_ivec ** clb_opins_used_locally,
+			t_segment_inf *segment_inf)
 {
 
 /* Timing-driven routing algorithm.  The timing graph (includes net_slack)   *
@@ -127,7 +131,8 @@ try_timing_driven_route(struct s_router_opts router_opts,
 							sink_order,
 							rt_node_of_sink,
 							T_crit,
-							net_delay[inet]);
+							net_delay[inet],
+							segment_inf);
 
 			    /* Impossible to route? (disconnected rr_graph) */
 
@@ -326,7 +331,8 @@ timing_driven_route_net(int inet,
 			int *sink_order,
 			t_rt_node ** rt_node_of_sink,
 			float T_crit,
-			float *net_delay)
+			float *net_delay,
+			t_segment_inf *segment_inf)
 {
 
 /* Returns TRUE as long is found some way to hook up this net, even if that *
@@ -378,7 +384,7 @@ timing_driven_route_net(int inet,
 		highfanout_rlim = mark_node_expansion_by_bin(inet, target_node, rt_root);
 
 	    add_route_tree_to_heap(rt_root, target_node, target_criticality,
-				   astar_fac);
+				   astar_fac, segment_inf);
 
 	    current = get_heap_head();
 
@@ -431,7 +437,8 @@ timing_driven_route_net(int inet,
 							    target_criticality,
 							    target_node,
 							    astar_fac,
-								highfanout_rlim);
+								highfanout_rlim,
+								segment_inf);
 			}
 
 		    free_heap_data(current);
@@ -481,7 +488,8 @@ static void
 add_route_tree_to_heap(t_rt_node * rt_node,
 		       int target_node,
 		       float target_criticality,
-		       float astar_fac)
+		       float astar_fac,
+		       t_segment_inf *segment_inf)
 {
 
 /* Puts the entire partial routing below and including rt_node onto the heap *
@@ -505,7 +513,8 @@ add_route_tree_to_heap(t_rt_node * rt_node,
 		astar_fac * get_timing_driven_expected_cost(inode,
 							    target_node,
 							    target_criticality,
-							    R_upstream);
+							    R_upstream,
+							    segment_inf);
 	    node_to_heap(inode, tot_cost, NO_PREVIOUS, NO_PREVIOUS,
 			 backward_path_cost, R_upstream);
 	}
@@ -516,7 +525,7 @@ add_route_tree_to_heap(t_rt_node * rt_node,
 	{
 	    child_node = linked_rt_edge->child;
 	    add_route_tree_to_heap(child_node, target_node,
-				   target_criticality, astar_fac);
+				   target_criticality, astar_fac, segment_inf);
 	    linked_rt_edge = linked_rt_edge->next;
 	}
 }
@@ -529,7 +538,8 @@ timing_driven_expand_neighbours(struct s_heap *current,
 				float criticality_fac,
 				int target_node,
 				float astar_fac,
-				int highfanout_rlim)
+				int highfanout_rlim,
+				t_segment_inf *segment_inf)
 {
 
 /* Puts all the rr_nodes adjacent to current on the heap.  rr_nodes outside *
@@ -616,7 +626,8 @@ timing_driven_expand_neighbours(struct s_heap *current,
 	    new_tot_cost = new_back_pcost + astar_fac *
 		get_timing_driven_expected_cost(to_node, target_node,
 						criticality_fac,
-						new_R_upstream);
+						new_R_upstream,
+						segment_inf);
 
 	    node_to_heap(to_node, new_tot_cost, inode, iconn, new_back_pcost,
 			 new_R_upstream);
@@ -629,7 +640,8 @@ static float
 get_timing_driven_expected_cost(int inode,
 				int target_node,
 				float criticality_fac,
-				float R_upstream)
+				float R_upstream,
+				t_segment_inf *segment_inf)
 {
 
 /* Determines the expected cost (due to both delay and resouce cost) to reach *
@@ -639,8 +651,7 @@ get_timing_driven_expected_cost(int inode,
     t_rr_type rr_type;
     int cost_index, ortho_cost_index, num_segs_same_dir, num_segs_ortho_dir;
     float expected_cost, cong_cost, Tdel;
-
-    rr_type = rr_node[inode].type;
+    int target_x, target_y;
 
     if(rr_type == CHANX || rr_type == CHANY)
 	{
@@ -671,6 +682,13 @@ get_timing_driven_expected_cost(int inode,
 			      rr_indexed_data[ortho_cost_index].C_load);
 
 	    Tdel += rr_indexed_data[IPIN_COST_INDEX].T_linear;
+
+	    target_x = rr_node[target_node].xlow;
+		target_y = rr_node[target_node].ylow;
+
+//	    if (rr_type == CHANX) {
+//	    	if (target_y > g_seg_details, rr_node[inode].ptc_num, rr_node[inode].ylow, rr_node[inode].xlow)
+//	    }
 
 	    expected_cost =
 		criticality_fac * Tdel + (1. - criticality_fac) * cong_cost;

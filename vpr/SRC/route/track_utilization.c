@@ -65,19 +65,19 @@ void read_raw_routing_structs()
 
 	fread(&num_nets, sizeof(int), 1, file);
 
-	trace_head = calloc(num_nets, sizeof(struct s_trace *));
+	trace_head = my_calloc(num_nets, sizeof(struct s_trace *));
 
 	for (i = 0; i < num_nets; i++) {
 		fread(&count, sizeof(int), 1, file);
 
 		for (j = 0; j < count; j++) {
 			if (j == 0) {
-				tptr = (struct s_trace *)malloc(sizeof(struct s_trace));
+				tptr = (struct s_trace *)my_malloc(sizeof(struct s_trace));
 				trace_head[i] = tptr;
 			}
 			fread(tptr, sizeof(struct s_trace), 1, file);
 			if (j < count-1) {
-				tptr->next = (struct s_trace *)malloc(sizeof(struct s_trace));
+				tptr->next = (struct s_trace *)my_malloc(sizeof(struct s_trace));
 			} else {
 				tptr->next = NULL;
 			}
@@ -85,20 +85,20 @@ void read_raw_routing_structs()
 		}
 	}
 
-	clb_net = calloc(num_nets, sizeof(struct s_net));
+	clb_net = my_calloc(num_nets, sizeof(struct s_net));
 	fread(clb_net, sizeof(struct s_net), num_nets, file);
 
 	fread(&num_rr_nodes, sizeof(int), 1, file);
 
-	rr_node = (struct rr_node *)calloc(num_rr_nodes, sizeof(struct s_rr_node));
+	rr_node = (struct rr_node *)my_calloc(num_rr_nodes, sizeof(struct s_rr_node));
 
 	for (i = 0; i < num_rr_nodes; i++) {
 		fread(&rr_node[i], sizeof(struct s_rr_node), 1, file);
 
-		rr_node[i].edges = malloc(sizeof(int)*rr_node[i].num_edges);
+		rr_node[i].edges = my_malloc(sizeof(int)*rr_node[i].num_edges);
 		fread(rr_node[i].edges, sizeof(int), rr_node[i].num_edges, file);
 
-		rr_node[i].switches = malloc(sizeof(int)*rr_node[i].num_edges);
+		rr_node[i].switches = my_malloc(sizeof(int)*rr_node[i].num_edges);
 		fread(rr_node[i].switches, sizeof(int), rr_node[i].num_edges, file);
 	}
 
@@ -122,9 +122,9 @@ void print_track_utilization() {
 	int count[10];
 	char *branch_name[BRANCH_ENUM_END] = { "STRAIGHT", "LEFT", "RIGHT" };
 
-	used_branches = calloc(num_rr_nodes, sizeof(int *));
-	total_branches = (int *)calloc(num_rr_nodes, sizeof(int));
-	track_length = (int *)calloc(num_rr_nodes, sizeof(int));
+	used_branches = my_calloc(num_rr_nodes, sizeof(int *));
+	total_branches = (int *)my_calloc(num_rr_nodes, sizeof(int));
+	track_length = (int *)my_calloc(num_rr_nodes, sizeof(int));
 
 	file = fopen("track_utilization.txt", "w");
 

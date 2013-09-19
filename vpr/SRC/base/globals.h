@@ -97,6 +97,8 @@ extern int **net_rr_terminals;	/* [0..num_nets-1][0..num_pins-1] */
 extern struct s_switch_inf *switch_inf;	/* [0..det_routing_arch.num_switch-1] */
 extern int **rr_blk_source;	/* [0..num_blocks-1][0..num_class-1] */
 
+extern t_seg_details *g_seg_details;
+
 
 /*******************************************************************
 Timing related globals

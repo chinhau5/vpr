@@ -114,6 +114,8 @@ int **rr_blk_source = NULL;	/* [0..(num_blocks-1)][0..(num_class-1)] */
 /* primiary inputs removed from circuit */
 struct s_linked_vptr *circuit_p_io_removed = NULL;
 
+t_seg_details *g_seg_details;
+
 
 /********** Structures representing timing graph information */
 t_tnode *tnode = NULL;			/* [0..num_tnodes - 1] */

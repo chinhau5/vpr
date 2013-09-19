@@ -1569,7 +1569,7 @@ get_track_to_tracks(INP int from_chan,
 				seg_details[from_track].direction))
 				{
 			    	branch = FALSE;
-			    	if (from_sb != from_first) { //not end sb
+			    	//if (from_sb != from_first) { //not end sb
 			    		if (from_side_a == TOP) {
 							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
 								branch = TRUE;
@@ -1584,9 +1584,9 @@ get_track_to_tracks(INP int from_chan,
 								branch = TRUE;
 							}
 						}
-			    	} else {
-			    		branch = TRUE;
-			    	}
+//			    	} else {
+//			    		branch = TRUE;
+//			    	}
 
 			    	if (branch)
 			    	num_conn +=
@@ -2855,7 +2855,7 @@ label_wire_muxes(INP int chan_num,
     return labels;
 }
 
-
+//get_rr_node_segment_info
 
 static int *
 label_incoming_wires(INP int chan_num,
