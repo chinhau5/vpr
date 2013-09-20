@@ -651,7 +651,8 @@ get_timing_driven_expected_cost(int inode,
     t_rr_type rr_type;
     int cost_index, ortho_cost_index, num_segs_same_dir, num_segs_ortho_dir;
     float expected_cost, cong_cost, Tdel;
-    int target_x, target_y;
+
+    rr_type = rr_node[inode].type;
 
     if(rr_type == CHANX || rr_type == CHANY)
 	{
@@ -683,8 +684,8 @@ get_timing_driven_expected_cost(int inode,
 
 	    Tdel += rr_indexed_data[IPIN_COST_INDEX].T_linear;
 
-	    target_x = rr_node[target_node].xlow;
-		target_y = rr_node[target_node].ylow;
+	    //target_x = rr_node[target_node].xlow;
+		//target_y = rr_node[target_node].ylow;
 
 //	    if (rr_type == CHANX) {
 //	    	if (target_y > g_seg_details, rr_node[inode].ptc_num, rr_node[inode].ylow, rr_node[inode].xlow)

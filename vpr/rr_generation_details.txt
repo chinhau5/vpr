@@ -21,3 +21,10 @@ load_sblock_pattern_lookup
 chan_num >= 0, seg_num >= 1
 
 update_screen -> draw_screen
+
+for each channel {
+	build_rr_xchan {
+		for each track {
+			get_track_to_tracks {
+				for each track segment {
+				

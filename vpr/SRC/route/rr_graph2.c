@@ -1397,6 +1397,8 @@ get_track_to_ipins(int seg,
     return (num_conn);
 }
 
+//corner case where segment
+#define LOL
 
 /* Counts how many connections should be made from this segment to the y-   *
  * segments in the adjacent channels at to_j.  It returns the number of     *
@@ -1442,6 +1444,10 @@ get_track_to_tracks(INP int from_chan,
     enum e_side from_side_a, from_side_b, to_side;
     int branch_direction;
     boolean branch;
+
+    char *sides[] = { "TOP", "RIGHT", "BOTTOM", "LEFT" };
+
+    //printf("[get_track_to_tracks] from_chan: %d from_seg: %d from_track: %d from_type: %d ||| to_seg: %d to_type: %d\n", from_chan, from_seg, from_track, from_type, to_seg, to_type);
 
     assert(from_seg ==
 	   get_seg_start(seg_details, from_track, from_chan, from_seg));
@@ -1568,26 +1574,57 @@ get_track_to_tracks(INP int from_chan,
 			       (DEC_DIRECTION ==
 				seg_details[from_track].direction))
 				{
+			    	//printf("[LEFT|DOWN] branch_dir: %d from_side: %s to_side: %s ||| to_chan: %d to_seg: %d to_sb: %d to_type: %d\n", branch_direction, sides[from_side_a], sides[to_side], to_chan, to_seg, to_sb, to_type);
+
 			    	branch = FALSE;
-			    	//if (from_sb != from_first) { //not end sb
+#ifdef LOL
+			    	//if (from_sb != from_first) {
 			    		if (from_side_a == TOP) {
+			    			assert(from_type == CHANY);
 							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
 								branch = TRUE;
-							} else if (to_side == RIGHT && (branch_direction == 1 || branch_direction == 3)){
+							} else if (to_side == RIGHT && (branch_direction == 1 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == BOTTOM) {
+								assert (from_sb == from_first);
 								branch = TRUE;
 							}
 						} else {
-							assert(from_side_a == RIGHT);
+							assert(from_type == CHANX && from_side_a == RIGHT);
 							if (to_side == TOP && (branch_direction == 2 || branch_direction == 3)) {
 								branch = TRUE;
-							} else if (to_side == BOTTOM && (branch_direction == 1 || branch_direction == 3)){
+							} else if (to_side == BOTTOM && (branch_direction == 1 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == LEFT) {
+								assert (from_sb == from_first);
 								branch = TRUE;
 							}
 						}
 //			    	} else {
-//			    		branch = TRUE;
+//
 //			    	}
-
+#else
+					if (from_sb != from_first) { //not end sb
+						if (from_side_a == TOP) {
+							assert(from_type == CHANY);
+							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == RIGHT && (branch_direction == 1 || branch_direction == 3)) {
+								branch = TRUE;
+							}
+						} else {
+							assert(from_type == CHANX && from_side_a == RIGHT);
+							if (to_side == TOP && (branch_direction == 2 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == BOTTOM && (branch_direction == 1 || branch_direction == 3)) {
+								branch = TRUE;
+							}
+						}
+					} else {
+						//assert((from_side_a == TOP && to_side == BOTTOM) || (from_side_a == RIGHT && to_side == LEFT));
+						branch = TRUE;
+					}
+#endif
 			    	if (branch)
 			    	num_conn +=
 					get_unidir_track_to_chan_seg((from_sb
@@ -1643,16 +1680,46 @@ get_track_to_tracks(INP int from_chan,
 			       (INC_DIRECTION ==
 				seg_details[from_track].direction))
 				{
+			    	//printf("[RIGHT|UP] branch_dir: %d from_side: %s to_side: %s ||| to_chan: %d to_seg: %d to_sb: %d to_type: %d\n", branch_direction, sides[from_side_b], sides[to_side], to_chan, to_seg, to_sb, to_type);
 			    	branch = FALSE;
-					if (from_sb != from_first) { //not end sb
+#ifdef LOL
+					//if (from_sb != from_end) { //not end sb
 						if (from_side_b == BOTTOM) {
+							assert(from_type == CHANY);
+							if (to_side == LEFT && (branch_direction == 1 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == RIGHT && (branch_direction == 2 || branch_direction == 3)){
+								branch = TRUE;
+							} else if (to_side == TOP) {
+								assert (from_sb == from_end);
+								branch = TRUE;
+							}
+						} else {
+							assert(from_type == CHANX && from_side_b == LEFT);
+							if (to_side == TOP && (branch_direction == 1 || branch_direction == 3)) {
+								branch = TRUE;
+							} else if (to_side == BOTTOM && (branch_direction == 2 || branch_direction == 3)){
+								branch = TRUE;
+							} else if (to_side == RIGHT) {
+								assert (from_sb == from_end);
+								branch = TRUE;
+							}
+						}
+//					} else {
+//						branch = TRUE;
+//					}
+
+#else
+					if (from_sb != from_end) { //not end sb
+						if (from_side_b == BOTTOM) {
+							assert(from_type == CHANY);
 							if (to_side == LEFT && (branch_direction == 1 || branch_direction == 3)) {
 								branch = TRUE;
 							} else if (to_side == RIGHT && (branch_direction == 2 || branch_direction == 3)){
 								branch = TRUE;
 							}
 						} else {
-							assert(from_side_b == LEFT);
+							assert(from_type == CHANX && from_side_b == LEFT);
 							if (to_side == TOP && (branch_direction == 1 || branch_direction == 3)) {
 								branch = TRUE;
 							} else if (to_side == BOTTOM && (branch_direction == 2 || branch_direction == 3)){
@@ -1662,7 +1729,7 @@ get_track_to_tracks(INP int from_chan,
 					} else {
 						branch = TRUE;
 					}
-
+#endif
 			    	if (branch)
 				    num_conn +=
 					get_unidir_track_to_chan_seg((from_sb
@@ -1690,6 +1757,7 @@ get_track_to_tracks(INP int from_chan,
 		}
 	}
 
+    //printf("\n");
     return num_conn;
 }
 
