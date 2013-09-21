@@ -146,7 +146,8 @@ static int *label_incoming_wires(INP int chan_num,
 				 INP enum e_direction dir,
 				 INP int nodes_per_chan,
 				 OUTP int *num_incoming_wires,
-				 OUTP int *num_ending_wires);
+				 OUTP int *num_ending_wires,
+				 OUTP int **seg_branch_dir);
 
 static int find_label_of_track(int *wire_mux_on_track,
 			       int num_wire_muxes,
@@ -1442,10 +1443,10 @@ get_track_to_tracks(INP int from_chan,
     struct s_ivec conn_tracks;
     boolean from_is_sbox, is_behind, Fs_clipped;
     enum e_side from_side_a, from_side_b, to_side;
-    int branch_direction;
-    boolean branch;
-    boolean is_fringe, is_core, is_corner;
-    int sb_x, sb_y;
+    //int branch_direction;
+//    boolean branch;
+//    boolean is_fringe, is_core, is_corner;
+//    int sb_x, sb_y;
 
     char *sides[] = { "TOP", "RIGHT", "BOTTOM", "LEFT" };
 
@@ -1529,8 +1530,8 @@ get_track_to_tracks(INP int from_chan,
 	    /* Figure out if we are at a sbox */
 	    from_is_sbox = is_sbox(from_chan, from_seg, from_sb, from_track,
 				   seg_details, directionality);
-	    branch_direction = get_branch_direction(from_chan, from_seg, from_sb, from_track,
-				   seg_details, directionality);
+//	    branch_direction = get_branch_direction(from_chan, from_seg, from_sb, from_track,
+//				   seg_details, directionality);
 	    /* end of wire must be an sbox */
 	    if(from_sb == from_end || from_sb == from_first)
 		{
@@ -1547,23 +1548,23 @@ get_track_to_tracks(INP int from_chan,
 		    to_sb = from_sb;
 		}
 
-	    if(CHANX == to_type)
-		{
-			sb_x = to_sb;
-			sb_y = to_chan;
-		}
-		else
-		{
-			assert(CHANY == to_type);
-			sb_x = to_chan;
-			sb_y = to_sb;
-		}
-
-		/* SBs go from (0, 0) to (nx, ny) */
-		is_corner = ((sb_x < 1) || (sb_x >= nx)) && ((sb_y < 1) || (sb_y >= ny));
-		is_fringe = (FALSE == is_corner) && ((sb_x < 1) || (sb_y < 1)
-						 || (sb_x >= nx) || (sb_y >= ny));
-		is_core = (FALSE == is_corner) && (FALSE == is_fringe);
+//	    if(CHANX == to_type)
+//		{
+//			sb_x = to_sb;
+//			sb_y = to_chan;
+//		}
+//		else
+//		{
+//			assert(CHANY == to_type);
+//			sb_x = to_chan;
+//			sb_y = to_sb;
+//		}
+//
+//		/* SBs go from (0, 0) to (nx, ny) */
+//		is_corner = ((sb_x < 1) || (sb_x >= nx)) && ((sb_y < 1) || (sb_y >= ny));
+//		is_fringe = (FALSE == is_corner) && ((sb_x < 1) || (sb_y < 1)
+//						 || (sb_x >= nx) || (sb_y >= ny));
+//		is_core = (FALSE == is_corner) && (FALSE == is_fringe);
 
 	    /* Do the edges going to the left or down */
 	    if(from_sb < from_end)
@@ -1596,57 +1597,57 @@ get_track_to_tracks(INP int from_chan,
 				{
 			    	//printf("[LEFT|DOWN] branch_dir: %d from_side: %s to_side: %s ||| to_chan: %d to_seg: %d to_sb: %d to_type: %d\n", branch_direction, sides[from_side_a], sides[to_side], to_chan, to_seg, to_sb, to_type);
 
-			    	branch = FALSE;
-#ifdef LOL
-			    	//if (from_sb != from_first) {
-			    	if (is_core) {
-			    		if (from_side_a == TOP) {
-			    			assert(from_type == CHANY);
-							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == RIGHT && (branch_direction == 1 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == BOTTOM) {
-								assert (from_sb == from_first);
-								branch = TRUE;
-							}
-						} else {
-							assert(from_type == CHANX && from_side_a == RIGHT);
-							if (to_side == TOP && (branch_direction == 2 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == BOTTOM && (branch_direction == 1 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == LEFT) {
-								assert (from_sb == from_first);
-								branch = TRUE;
-							}
-						}
-			    	} else {
-			    		branch = TRUE;
-			    	}
-#else
-					if (from_sb != from_first) { //not end sb
-						if (from_side_a == TOP) {
-							assert(from_type == CHANY);
-							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == RIGHT && (branch_direction == 1 || branch_direction == 3)) {
-								branch = TRUE;
-							}
-						} else {
-							assert(from_type == CHANX && from_side_a == RIGHT);
-							if (to_side == TOP && (branch_direction == 2 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == BOTTOM && (branch_direction == 1 || branch_direction == 3)) {
-								branch = TRUE;
-							}
-						}
-					} else {
-						//assert((from_side_a == TOP && to_side == BOTTOM) || (from_side_a == RIGHT && to_side == LEFT));
-						branch = TRUE;
-					}
-#endif
-			    	if (branch)
+//			    	branch = FALSE;
+//#ifdef LOL
+//			    	//if (from_sb != from_first) {
+//			    	if (is_core) {
+//			    		if (from_side_a == TOP) {
+//			    			assert(from_type == CHANY);
+//							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == RIGHT && (branch_direction == 1 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == BOTTOM) {
+//								assert (from_sb == from_first);
+//								branch = TRUE;
+//							}
+//						} else {
+//							assert(from_type == CHANX && from_side_a == RIGHT);
+//							if (to_side == TOP && (branch_direction == 2 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == BOTTOM && (branch_direction == 1 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == LEFT) {
+//								assert (from_sb == from_first);
+//								branch = TRUE;
+//							}
+//						}
+//			    	} else {
+//			    		branch = TRUE;
+//			    	}
+//#else
+//					if (from_sb != from_first) { //not end sb
+//						if (from_side_a == TOP) {
+//							assert(from_type == CHANY);
+//							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == RIGHT && (branch_direction == 1 || branch_direction == 3)) {
+//								branch = TRUE;
+//							}
+//						} else {
+//							assert(from_type == CHANX && from_side_a == RIGHT);
+//							if (to_side == TOP && (branch_direction == 2 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == BOTTOM && (branch_direction == 1 || branch_direction == 3)) {
+//								branch = TRUE;
+//							}
+//						}
+//					} else {
+//						//assert((from_side_a == TOP && to_side == BOTTOM) || (from_side_a == RIGHT && to_side == LEFT));
+//						branch = TRUE;
+//					}
+//#endif
+//			    	if (branch)
 			    	num_conn +=
 					get_unidir_track_to_chan_seg((from_sb
 								      ==
@@ -1702,57 +1703,57 @@ get_track_to_tracks(INP int from_chan,
 				seg_details[from_track].direction))
 				{
 			    	//printf("[RIGHT|UP] branch_dir: %d from_side: %s to_side: %s ||| to_chan: %d to_seg: %d to_sb: %d to_type: %d\n", branch_direction, sides[from_side_b], sides[to_side], to_chan, to_seg, to_sb, to_type);
-			    	branch = FALSE;
-#ifdef LOL
-					//if (from_sb != from_end) { //not end sb
-			    	if (is_core) {
-						if (from_side_b == BOTTOM) {
-							assert(from_type == CHANY);
-							if (to_side == LEFT && (branch_direction == 1 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == RIGHT && (branch_direction == 2 || branch_direction == 3)){
-								branch = TRUE;
-							} else if (to_side == TOP) {
-								assert (from_sb == from_end);
-								branch = TRUE;
-							}
-						} else {
-							assert(from_type == CHANX && from_side_b == LEFT);
-							if (to_side == TOP && (branch_direction == 1 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == BOTTOM && (branch_direction == 2 || branch_direction == 3)){
-								branch = TRUE;
-							} else if (to_side == RIGHT) {
-								assert (from_sb == from_end);
-								branch = TRUE;
-							}
-						}
-					} else {
-						branch = TRUE;
-					}
-
-#else
-					if (from_sb != from_end) { //not end sb
-						if (from_side_b == BOTTOM) {
-							assert(from_type == CHANY);
-							if (to_side == LEFT && (branch_direction == 1 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == RIGHT && (branch_direction == 2 || branch_direction == 3)){
-								branch = TRUE;
-							}
-						} else {
-							assert(from_type == CHANX && from_side_b == LEFT);
-							if (to_side == TOP && (branch_direction == 1 || branch_direction == 3)) {
-								branch = TRUE;
-							} else if (to_side == BOTTOM && (branch_direction == 2 || branch_direction == 3)){
-								branch = TRUE;
-							}
-						}
-					} else {
-						branch = TRUE;
-					}
-#endif
-			    	if (branch)
+//			    	branch = FALSE;
+//#ifdef LOL
+//					//if (from_sb != from_end) { //not end sb
+//			    	if (is_core) {
+//						if (from_side_b == BOTTOM) {
+//							assert(from_type == CHANY);
+//							if (to_side == LEFT && (branch_direction == 1 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == RIGHT && (branch_direction == 2 || branch_direction == 3)){
+//								branch = TRUE;
+//							} else if (to_side == TOP) {
+//								assert (from_sb == from_end);
+//								branch = TRUE;
+//							}
+//						} else {
+//							assert(from_type == CHANX && from_side_b == LEFT);
+//							if (to_side == TOP && (branch_direction == 1 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == BOTTOM && (branch_direction == 2 || branch_direction == 3)){
+//								branch = TRUE;
+//							} else if (to_side == RIGHT) {
+//								assert (from_sb == from_end);
+//								branch = TRUE;
+//							}
+//						}
+//					} else {
+//						branch = TRUE;
+//					}
+//
+//#else
+//					if (from_sb != from_end) { //not end sb
+//						if (from_side_b == BOTTOM) {
+//							assert(from_type == CHANY);
+//							if (to_side == LEFT && (branch_direction == 1 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == RIGHT && (branch_direction == 2 || branch_direction == 3)){
+//								branch = TRUE;
+//							}
+//						} else {
+//							assert(from_type == CHANX && from_side_b == LEFT);
+//							if (to_side == TOP && (branch_direction == 1 || branch_direction == 3)) {
+//								branch = TRUE;
+//							} else if (to_side == BOTTOM && (branch_direction == 2 || branch_direction == 3)){
+//								branch = TRUE;
+//							}
+//						}
+//					} else {
+//						branch = TRUE;
+//					}
+//#endif
+//			    	if (branch)
 				    num_conn +=
 					get_unidir_track_to_chan_seg((from_sb
 								      ==
@@ -1964,7 +1965,10 @@ get_unidir_track_to_chan_seg(INP boolean is_end_sb,
 
     /* Get the target label */
     to_mux = sblock_pattern[sb_x][sb_y][from_side][to_side][from_track];
-    assert(to_mux != UN_SET);
+    //assert(to_mux != UN_SET);
+    if (to_mux == UN_SET) {
+    	return 0;
+    }
 
     /* Handle Fs > 3 but assigning consecutive muxes. */
     count = 0;
@@ -2031,7 +2035,7 @@ is_sbox(INP int chan,
 	    ofs = length - ofs;
 	}
 
-    return seg_details[track].sb[ofs] > 0; //important modification to check whether there's a branch
+    return seg_details[track].sb[ofs];
 }
 
 int
@@ -2295,6 +2299,8 @@ load_sblock_pattern_lookup(INP int i,
     boolean skip, vert, pos_dir;
     enum e_direction dir;
 
+    int *seg_branch_dir[4];
+
     Fs_per_side = 1;
     if(Fs != -1)
 	{
@@ -2414,7 +2420,8 @@ load_sblock_pattern_lookup(INP int i,
 		label_incoming_wires(chan, seg, sb_seg, seg_details, chan_len,
 				     dir, nodes_per_chan,
 				     &num_incoming_wires[side],
-				     &num_ending_wires[side]);
+				     &num_ending_wires[side],
+				     &seg_branch_dir[side]);
 
 	    /* Figure out all the tracks on a side that are starting. */
 	    dir = (pos_dir ? INC_DIRECTION : DEC_DIRECTION);
@@ -2483,20 +2490,19 @@ load_sblock_pattern_lookup(INP int i,
 					}
 				    else
 					{
-
+				    	/* fringe block || passing wire */
 					    /* These are passing wires with sbox only for core sblocks
 					     * or passing and ending wires (for fringe cases). */
-				    	//TODO: modify here maybe?
-					    sblock_pattern[i][j][side_cw]
-						[to_side][itrack] =
-						(side_cw_incoming_wire_count *
-						 Fs_per_side) %
-						num_wire_muxes[to_side];
+				    	if ((!is_corner_sblock && !is_core_sblock) ||
+				    		(seg_branch_dir[side_cw][itrack] == 2 || seg_branch_dir[side_cw][itrack] == 3)) {
+				    		sblock_pattern[i][j][side_cw][to_side][itrack] =
+				    				(side_cw_incoming_wire_count * Fs_per_side) % num_wire_muxes[to_side];
 
-//					    printf("[side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, (side_cw_incoming_wire_count *
-//					    						 2) %
-//					    						num_wire_muxes[to_side]);
-					    side_cw_incoming_wire_count++;
+				    		//					    printf("[side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, (side_cw_incoming_wire_count *
+				    		//					    						 2) %
+				    		//					    						num_wire_muxes[to_side]);
+							side_cw_incoming_wire_count++;
+				    	}
 					}
 				}
 			}
@@ -2539,20 +2545,18 @@ load_sblock_pattern_lookup(INP int i,
 
 				    /* These are passing wires with sbox only for core sblocks
 				     * or passing and ending wires (for fringe cases). */
-			    	//TODO: modify here maybe?
-				    sblock_pattern[i][j][side_ccw][to_side]
-					[itrack] =
-					((side_ccw_incoming_wire_count +
-					  side_cw_incoming_wire_count) *
-					 Fs_per_side) %
-					num_wire_muxes[to_side];
+			    	if ((!is_corner_sblock && !is_core_sblock) ||
+			    		(seg_branch_dir[side_cw][itrack] == 1 || seg_branch_dir[side_cw][itrack] == 3)) {
+						sblock_pattern[i][j][side_ccw][to_side][itrack] =
+								((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side) % num_wire_muxes[to_side];
 
-//				    printf("[side_ccw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_ccw, to_side, itrack, ((side_ccw_incoming_wire_count +
-//							  side_cw_incoming_wire_count) *
-//							 2) %
-//							num_wire_muxes[to_side]);
+	//				    printf("[side_ccw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_ccw, to_side, itrack, ((side_ccw_incoming_wire_count +
+	//							  side_cw_incoming_wire_count) *
+	//							 2) %
+	//							num_wire_muxes[to_side]);
 
-				    side_ccw_incoming_wire_count++;
+						side_ccw_incoming_wire_count++;
+			    	}
 				}
 			}
 		}
@@ -2956,7 +2960,8 @@ label_incoming_wires(INP int chan_num,
 		     INP enum e_direction dir,
 		     INP int nodes_per_chan,
 		     OUTP int *num_incoming_wires,
-		     OUTP int *num_ending_wires)
+		     OUTP int *num_ending_wires,
+		     OUTP int **seg_branch_dir)
 {
 
     /* Labels the incoming wires on that side (seg_num, chan_num, direction). 
@@ -2972,6 +2977,13 @@ label_incoming_wires(INP int chan_num,
     for(i = 0; i < nodes_per_chan; ++i)
 	{
 	    labels[i] = UN_SET;	/* crash hard if unset */
+	}
+
+    /* Alloc the list of labels for the tracks */
+    *seg_branch_dir = (int *)my_malloc(nodes_per_chan * sizeof(int));
+	for(i = 0; i < nodes_per_chan; ++i)
+	{
+		(*seg_branch_dir)[i] = UN_SET;	/* crash hard if unset */
 	}
 
     num_ending = 0;
@@ -3000,6 +3012,8 @@ label_incoming_wires(INP int chan_num,
 			    sbox_exists = is_sbox(chan_num, seg_num, sb_seg,
 						  itrack, seg_details,
 						  UNI_DIRECTIONAL);
+
+			    (*seg_branch_dir)[itrack] = sbox_exists;
 
 			    switch (pass)
 				{
