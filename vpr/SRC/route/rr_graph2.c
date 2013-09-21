@@ -2479,13 +2479,16 @@ load_sblock_pattern_lookup(INP int i,
 					    assert(num_ending_wires[side_cw]
 						   ==
 						   num_wire_muxes[to_side]);
-					    sblock_pattern[i][j][side_cw]
-						[to_side][itrack] =
-						get_simple_switch_block_track
-						(side_cw, to_side,
-						 incoming_wire_label[side_cw]
-						 [itrack], switch_block_type,
-						 num_wire_muxes[to_side]);
+					    if ((is_core_sblock && (seg_branch_dir[side_cw][itrack] == 2 || seg_branch_dir[side_cw][itrack] == 3)) ||
+					    	is_corner_sblock) {
+							sblock_pattern[i][j][side_cw]
+							[to_side][itrack] =
+							get_simple_switch_block_track
+							(side_cw, to_side,
+							 incoming_wire_label[side_cw]
+							 [itrack], switch_block_type,
+							 num_wire_muxes[to_side]);
+					    }
 
 					}
 				    else
@@ -2532,13 +2535,16 @@ load_sblock_pattern_lookup(INP int i,
 				    assert(incoming_wire_label[side_ccw]
 					   [itrack] <
 					   num_wire_muxes[to_side]);
-				    sblock_pattern[i][j][side_ccw][to_side]
-					[itrack] =
-					get_simple_switch_block_track
-					(side_ccw, to_side,
-					 incoming_wire_label[side_ccw]
-					 [itrack], switch_block_type,
-					 num_wire_muxes[to_side]);
+				    if ((is_core_sblock && (seg_branch_dir[side_ccw][itrack] == 2 || seg_branch_dir[side_ccw][itrack] == 3)) ||
+						is_corner_sblock) {
+						sblock_pattern[i][j][side_ccw][to_side]
+						[itrack] =
+						get_simple_switch_block_track
+						(side_ccw, to_side,
+						 incoming_wire_label[side_ccw]
+						 [itrack], switch_block_type,
+						 num_wire_muxes[to_side]);
+				    }
 				}
 			    else
 				{
