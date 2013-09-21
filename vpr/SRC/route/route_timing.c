@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <assert.h>
 #include "util.h"
 #include "vpr_types.h"
 #include "globals.h"
@@ -20,8 +21,7 @@ static int get_max_pins_per_net(void);
 static void add_route_tree_to_heap(t_rt_node * rt_node,
 				   int target_node,
 				   float target_criticality,
-				   float astar_fac,
-				   t_segment_inf *segment_inf);
+				   float astar_fac);
 
 static void timing_driven_expand_neighbours(struct s_heap *current,
 					    int inet,
@@ -29,14 +29,12 @@ static void timing_driven_expand_neighbours(struct s_heap *current,
 					    float criticality_fac,
 					    int target_node,
 					    float astar_fac,
-						int highfanout_rlim,
-						t_segment_inf *segment_inf);
+						int highfanout_rlim);
 
 static float get_timing_driven_expected_cost(int inode,
 					     int target_node,
 					     float criticality_fac,
-					     float R_upstream,
-					     t_segment_inf *segment_inf);
+					     float R_upstream);
 
 static int get_expected_segs_to_target(int inode,
 				       int target_node,
@@ -52,12 +50,19 @@ static int mark_node_expansion_by_bin(int inet, int target_node, t_rt_node * rt_
 
 /************************ Subroutine definitions *****************************/
 
+FILE *route_debug;
+
+#ifdef PRINT_ROUTING_VERBOSE
+#define ROUTE_VERBOSE_PRINT(msg, ...) fprintf(route_debug, msg __VA_ARGS__)
+#else
+#define ROUTE_VERBOSE_PRINT(msg, ...)
+#endif
+
 boolean
 try_timing_driven_route(struct s_router_opts router_opts,
 			float **net_slack,
 			float **net_delay,
-			t_ivec ** clb_opins_used_locally,
-			t_segment_inf *segment_inf)
+			t_ivec ** clb_opins_used_locally)
 {
 
 /* Timing-driven routing algorithm.  The timing graph (includes net_slack)   *
@@ -131,8 +136,7 @@ try_timing_driven_route(struct s_router_opts router_opts,
 							sink_order,
 							rt_node_of_sink,
 							T_crit,
-							net_delay[inet],
-							segment_inf);
+							net_delay[inet]);
 
 			    /* Impossible to route? (disconnected rr_graph) */
 
@@ -331,8 +335,7 @@ timing_driven_route_net(int inet,
 			int *sink_order,
 			t_rt_node ** rt_node_of_sink,
 			float T_crit,
-			float *net_delay,
-			t_segment_inf *segment_inf)
+			float *net_delay)
 {
 
 /* Returns TRUE as long is found some way to hook up this net, even if that *
@@ -384,7 +387,7 @@ timing_driven_route_net(int inet,
 		highfanout_rlim = mark_node_expansion_by_bin(inet, target_node, rt_root);
 
 	    add_route_tree_to_heap(rt_root, target_node, target_criticality,
-				   astar_fac, segment_inf);
+				   astar_fac);
 
 	    current = get_heap_head();
 
@@ -437,8 +440,7 @@ timing_driven_route_net(int inet,
 							    target_criticality,
 							    target_node,
 							    astar_fac,
-								highfanout_rlim,
-								segment_inf);
+								highfanout_rlim);
 			}
 
 		    free_heap_data(current);
@@ -488,8 +490,7 @@ static void
 add_route_tree_to_heap(t_rt_node * rt_node,
 		       int target_node,
 		       float target_criticality,
-		       float astar_fac,
-		       t_segment_inf *segment_inf)
+		       float astar_fac)
 {
 
 /* Puts the entire partial routing below and including rt_node onto the heap *
@@ -513,8 +514,7 @@ add_route_tree_to_heap(t_rt_node * rt_node,
 		astar_fac * get_timing_driven_expected_cost(inode,
 							    target_node,
 							    target_criticality,
-							    R_upstream,
-							    segment_inf);
+							    R_upstream);
 	    node_to_heap(inode, tot_cost, NO_PREVIOUS, NO_PREVIOUS,
 			 backward_path_cost, R_upstream);
 	}
@@ -525,7 +525,7 @@ add_route_tree_to_heap(t_rt_node * rt_node,
 	{
 	    child_node = linked_rt_edge->child;
 	    add_route_tree_to_heap(child_node, target_node,
-				   target_criticality, astar_fac, segment_inf);
+				   target_criticality, astar_fac);
 	    linked_rt_edge = linked_rt_edge->next;
 	}
 }
@@ -538,8 +538,7 @@ timing_driven_expand_neighbours(struct s_heap *current,
 				float criticality_fac,
 				int target_node,
 				float astar_fac,
-				int highfanout_rlim,
-				t_segment_inf *segment_inf)
+				int highfanout_rlim)
 {
 
 /* Puts all the rr_nodes adjacent to current on the heap.  rr_nodes outside *
@@ -626,8 +625,7 @@ timing_driven_expand_neighbours(struct s_heap *current,
 	    new_tot_cost = new_back_pcost + astar_fac *
 		get_timing_driven_expected_cost(to_node, target_node,
 						criticality_fac,
-						new_R_upstream,
-						segment_inf);
+						new_R_upstream);
 
 	    node_to_heap(to_node, new_tot_cost, inode, iconn, new_back_pcost,
 			 new_R_upstream);
@@ -640,8 +638,7 @@ static float
 get_timing_driven_expected_cost(int inode,
 				int target_node,
 				float criticality_fac,
-				float R_upstream,
-				t_segment_inf *segment_inf)
+				float R_upstream)
 {
 
 /* Determines the expected cost (due to both delay and resouce cost) to reach *
@@ -651,6 +648,9 @@ get_timing_driven_expected_cost(int inode,
     t_rr_type rr_type;
     int cost_index, ortho_cost_index, num_segs_same_dir, num_segs_ortho_dir;
     float expected_cost, cong_cost, Tdel;
+    int iedge, num_direct_ortho_edge, num_chan_edges;
+    int child_inode;
+    float cost;
 
     rr_type = rr_node[inode].type;
 
@@ -661,6 +661,114 @@ get_timing_driven_expected_cost(int inode,
 					    &num_segs_ortho_dir);
 	    cost_index = rr_node[inode].cost_index;
 	    ortho_cost_index = rr_indexed_data[cost_index].ortho_cost_index;
+
+//	    num_direct_ortho_edge = 0; /*number of edges that points directly towards target */
+//		num_chan_edges = 0;
+//		assert(rr_node[target_node].type == SINK);
+//		if (rr_type == CHANX) {
+//			if (rr_node[target_node].ylow == rr_node[inode].ylow || rr_node[target_node].ylow == rr_node[inode].ylow + 1) {
+//				/* when channel is on top of CLB or below of CLB, don't need any orthogonal segments */
+//			} else {
+//				if (rr_node[target_node].ylow > rr_node[inode].ylow + 1) {		/* Coming from a row above target? */
+//					num_direct_ortho_edge = 0;
+//					for (iedge = 0; iedge < rr_node[inode].num_edges; iedge++) {
+//						child_inode = rr_node[inode].edges[iedge];
+//
+//						if (rr_node[child_inode].type == CHANY && rr_node[child_inode].direction == INC_DIRECTION) {
+//							assert(rr_node[child_inode].ylow > rr_node[inode].ylow);
+//							num_direct_ortho_edge++;
+//						}
+//					}
+//					if (num_direct_ortho_edge < 2) {
+//						num_segs_same_dir += 1;
+//						num_segs_ortho_dir += 1;
+//					}
+//				}
+//				else if(rr_node[target_node].ylow < rr_node[inode].ylow) {
+//					num_direct_ortho_edge = 0;
+//					for (iedge = 0; iedge < rr_node[inode].num_edges; iedge++) {
+//						child_inode = rr_node[inode].edges[iedge];
+//
+//						if (rr_node[child_inode].type == CHANY && rr_node[child_inode].direction == DEC_DIRECTION) {
+//							assert(rr_node[child_inode].ylow <= rr_node[inode].ylow);
+//							num_direct_ortho_edge++;
+//						}
+//					}
+//					if (num_direct_ortho_edge < 2) {
+//						num_segs_same_dir += 1;
+//						num_segs_ortho_dir += 1;
+//					}
+//				} else {
+//					assert(0);
+//				}
+//			}
+//		} else {
+//			assert(rr_type == CHANY);
+//
+//			if (rr_node[target_node].xlow == rr_node[inode].xlow || rr_node[target_node].xlow == rr_node[inode].xlow + 1) {
+//							/* when channel is on top of CLB or below of CLB, don't need any orthogonal segments */
+//			} else {
+//				if (rr_node[target_node].xlow > rr_node[inode].xlow + 1) {		/* Coming from a row above target? */
+//					num_direct_ortho_edge = 0;
+//					for (iedge = 0; iedge < rr_node[inode].num_edges; iedge++) {
+//						child_inode = rr_node[inode].edges[iedge];
+//
+//						if (rr_node[child_inode].type == CHANX && rr_node[child_inode].direction == INC_DIRECTION) {
+//							assert(rr_node[child_inode].xlow > rr_node[inode].xlow);
+//							num_direct_ortho_edge++;
+//						}
+//					}
+//					if (num_direct_ortho_edge < 2) {
+//						num_segs_same_dir += 1;
+//						num_segs_ortho_dir += 1;
+//					}
+//				}
+//				else if(rr_node[target_node].xlow < rr_node[inode].xlow) {
+//					num_direct_ortho_edge = 0;
+//					for (iedge = 0; iedge < rr_node[inode].num_edges; iedge++) {
+//						child_inode = rr_node[inode].edges[iedge];
+//
+//						if (rr_node[child_inode].type == CHANX && rr_node[child_inode].direction == DEC_DIRECTION) {
+//							assert(rr_node[child_inode].xlow <= rr_node[inode].xlow);
+//							num_direct_ortho_edge++;
+//						}
+//					}
+//					if (num_direct_ortho_edge < 2) {
+//						num_segs_same_dir += 1;
+//						num_segs_ortho_dir += 1;
+//					}
+//				} else {
+//					assert(0);
+//				}
+//			}
+//		}
+//			for (iedge = 0; iedge < rr_node[inode].num_edges; iedge++) {
+//				child_inode = rr_node[inode].edges[iedge];
+//				if (rr_node[child_inode].type == CHANY || rr_node[child_inode].type == CHANX) {
+//					num_chan_edges++;
+//				}
+//				if (rr_node[child_inode].type == CHANY) {
+//
+//
+//					}
+//					if ((rr_node[target_node].ylow > rr_node[inode].ylow && rr_node[child_inode].direction == INC_DIRECTION) ||
+//						(rr_node[target_node].ylow < rr_node[inode].ylow && rr_node[child_inode].direction == DEC_DIRECTION)) {
+//						num_direct_ortho_edge++;
+//					}
+//				}
+//			}
+//		} else if (rr_type == CHANY) {
+//			/*for (iedge = 0; iedge < rr_node[inode].num_edges; iedge++) {
+//				child_inode = rr_node[inode].edges[iedge];
+//				if (rr_node[child_inode].type == CHANX) {
+//					if ((rr_node[target_node].xlow > rr_node[inode].xlow && rr_node[child_inode].direction == INC_DIRECTION) ||
+//						(rr_node[target_node].xlow < rr_node[inode].xlow && rr_node[child_inode].direction == DEC_DIRECTION)) {
+//						num_direct_ortho_edge++;
+//					}
+//				}
+//			}*/
+//		}
+//		cost = 0.01 * (num_chan_edges - num_direct_ortho_edge) * rr_indexed_data[cost_index].base_cost;
 
 	    cong_cost =
 		num_segs_same_dir * rr_indexed_data[cost_index].base_cost +
@@ -683,13 +791,6 @@ get_timing_driven_expected_cost(int inode,
 			      rr_indexed_data[ortho_cost_index].C_load);
 
 	    Tdel += rr_indexed_data[IPIN_COST_INDEX].T_linear;
-
-	    //target_x = rr_node[target_node].xlow;
-		//target_y = rr_node[target_node].ylow;
-
-//	    if (rr_type == CHANX) {
-//	    	if (target_y > g_seg_details, rr_node[inode].ptc_num, rr_node[inode].ylow, rr_node[inode].xlow)
-//	    }
 
 	    expected_cost =
 		criticality_fac * Tdel + (1. - criticality_fac) * cong_cost;
@@ -759,6 +860,7 @@ get_expected_segs_to_target(int inode,
 		}
 	    else
 		{		/* In a row that passes by target CLB */
+	    	assert(ylow == target_y || ylow == target_y - 1);
 		    *num_segs_ortho_dir_ptr = 0;
 		    no_need_to_pass_by_clb = 0;
 		}
@@ -779,6 +881,7 @@ get_expected_segs_to_target(int inode,
 		}
 	    else
 		{
+	    	assert(xlow <= target_x + no_need_to_pass_by_clb && xhigh >= target_x - no_need_to_pass_by_clb);
 		    num_segs_same_dir = 0;
 		}
 	}
@@ -805,6 +908,7 @@ get_expected_segs_to_target(int inode,
 		}
 	    else
 		{		/* In a column that passes by target CLB */
+	    	assert(xlow == target_x || xlow == target_x - 1);
 		    *num_segs_ortho_dir_ptr = 0;
 		    no_need_to_pass_by_clb = 0;
 		}

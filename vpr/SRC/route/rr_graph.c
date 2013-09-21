@@ -577,11 +577,11 @@ build_rr_graph(INP t_graph_type graph_type,
 		   track_to_ipin_lookup, switch_block_conn, perturb_ipins);
 
     /* Free all temp structs */
-//    if(seg_details)
-//	{
-//	    free_seg_details(seg_details, nodes_per_chan);
-//	    seg_details = NULL;
-//	}
+    if(seg_details)
+	{
+	    free_seg_details(seg_details, nodes_per_chan);
+	    seg_details = NULL;
+	}
     if(Fc_in)
 	{
 	    free(Fc_in);

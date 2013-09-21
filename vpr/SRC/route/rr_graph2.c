@@ -1444,6 +1444,8 @@ get_track_to_tracks(INP int from_chan,
     enum e_side from_side_a, from_side_b, to_side;
     int branch_direction;
     boolean branch;
+    boolean is_fringe, is_core, is_corner;
+    int sb_x, sb_y;
 
     char *sides[] = { "TOP", "RIGHT", "BOTTOM", "LEFT" };
 
@@ -1545,6 +1547,24 @@ get_track_to_tracks(INP int from_chan,
 		    to_sb = from_sb;
 		}
 
+	    if(CHANX == to_type)
+		{
+			sb_x = to_sb;
+			sb_y = to_chan;
+		}
+		else
+		{
+			assert(CHANY == to_type);
+			sb_x = to_chan;
+			sb_y = to_sb;
+		}
+
+		/* SBs go from (0, 0) to (nx, ny) */
+		is_corner = ((sb_x < 1) || (sb_x >= nx)) && ((sb_y < 1) || (sb_y >= ny));
+		is_fringe = (FALSE == is_corner) && ((sb_x < 1) || (sb_y < 1)
+						 || (sb_x >= nx) || (sb_y >= ny));
+		is_core = (FALSE == is_corner) && (FALSE == is_fringe);
+
 	    /* Do the edges going to the left or down */
 	    if(from_sb < from_end)
 		{
@@ -1579,6 +1599,7 @@ get_track_to_tracks(INP int from_chan,
 			    	branch = FALSE;
 #ifdef LOL
 			    	//if (from_sb != from_first) {
+			    	if (is_core) {
 			    		if (from_side_a == TOP) {
 			    			assert(from_type == CHANY);
 							if (to_side == LEFT && (branch_direction == 2 || branch_direction == 3)) {
@@ -1600,9 +1621,9 @@ get_track_to_tracks(INP int from_chan,
 								branch = TRUE;
 							}
 						}
-//			    	} else {
-//
-//			    	}
+			    	} else {
+			    		branch = TRUE;
+			    	}
 #else
 					if (from_sb != from_first) { //not end sb
 						if (from_side_a == TOP) {
@@ -1684,6 +1705,7 @@ get_track_to_tracks(INP int from_chan,
 			    	branch = FALSE;
 #ifdef LOL
 					//if (from_sb != from_end) { //not end sb
+			    	if (is_core) {
 						if (from_side_b == BOTTOM) {
 							assert(from_type == CHANY);
 							if (to_side == LEFT && (branch_direction == 1 || branch_direction == 3)) {
@@ -1705,9 +1727,9 @@ get_track_to_tracks(INP int from_chan,
 								branch = TRUE;
 							}
 						}
-//					} else {
-//						branch = TRUE;
-//					}
+					} else {
+						branch = TRUE;
+					}
 
 #else
 					if (from_sb != from_end) { //not end sb

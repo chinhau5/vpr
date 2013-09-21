@@ -330,7 +330,7 @@ try_route(int width_fac,
 	    assert(router_opts.route_type != GLOBAL);
 	    success =
 		try_timing_driven_route(router_opts, net_slack, net_delay,
-					clb_opins_used_locally, segment_inf);
+					clb_opins_used_locally);
 	}
     else
 	{			/* Directed Search Routability Driven */
