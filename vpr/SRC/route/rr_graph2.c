@@ -2490,11 +2490,11 @@ load_sblock_pattern_lookup(INP int i,
 					}
 				    else
 					{
-				    	/* fringe block || passing wire */
 					    /* These are passing wires with sbox only for core sblocks
 					     * or passing and ending wires (for fringe cases). */
-				    	if ((!is_corner_sblock && !is_core_sblock) ||
-				    		(seg_branch_dir[side_cw][itrack] == 2 || seg_branch_dir[side_cw][itrack] == 3)) {
+				    	/* fringe block || passing wire */
+				    	if ((is_core_sblock && (seg_branch_dir[side_cw][itrack] == 2 || seg_branch_dir[side_cw][itrack] == 3)) ||
+				    		(!is_corner_sblock && !is_core_sblock)) {
 				    		sblock_pattern[i][j][side_cw][to_side][itrack] =
 				    				(side_cw_incoming_wire_count * Fs_per_side) % num_wire_muxes[to_side];
 
@@ -2545,8 +2545,9 @@ load_sblock_pattern_lookup(INP int i,
 
 				    /* These are passing wires with sbox only for core sblocks
 				     * or passing and ending wires (for fringe cases). */
-			    	if ((!is_corner_sblock && !is_core_sblock) ||
-			    		(seg_branch_dir[side_cw][itrack] == 1 || seg_branch_dir[side_cw][itrack] == 3)) {
+			    	/* fringe block || passing wire */
+			    	if ((is_core_sblock && (seg_branch_dir[side_ccw][itrack] == 1 || seg_branch_dir[side_ccw][itrack] == 3)) ||
+			    		(!is_corner_sblock && !is_core_sblock)) {
 						sblock_pattern[i][j][side_ccw][to_side][itrack] =
 								((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side) % num_wire_muxes[to_side];
 
