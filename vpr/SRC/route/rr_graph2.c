@@ -2535,7 +2535,7 @@ load_sblock_pattern_lookup(INP int i,
 				    assert(incoming_wire_label[side_ccw]
 					   [itrack] <
 					   num_wire_muxes[to_side]);
-				    if ((is_core_sblock && (seg_branch_dir[side_ccw][itrack] == 2 || seg_branch_dir[side_ccw][itrack] == 3)) ||
+				    if ((is_core_sblock && (seg_branch_dir[side_ccw][itrack] == 1 || seg_branch_dir[side_ccw][itrack] == 3)) ||
 						is_corner_sblock) {
 						sblock_pattern[i][j][side_ccw][to_side]
 						[itrack] =
