@@ -125,7 +125,8 @@ static int *label_wire_muxes(INP int chan_num,
 			     INP int max_len,
 			     INP enum e_direction dir,
 			     INP int nodes_per_chan,
-			     OUTP int *num_wire_muxes);
+			     OUTP int *num_wire_muxes,
+			     OUTP int **wire_mux_type_start);
 
 static int *label_wire_muxes_for_balance(INP int chan_num,
 					 INP int seg_num,
@@ -865,10 +866,10 @@ get_unidir_opin_connections(INP int chan,
     /* Get the lists of possible muxes. */
     inc_muxes = label_wire_muxes(chan, seg, seg_details, max_len,
 				 INC_DIRECTION, nodes_per_chan,
-				 &num_inc_muxes);
+				 &num_inc_muxes, NULL);
     dec_muxes =
 	label_wire_muxes(chan, seg, seg_details, max_len, DEC_DIRECTION,
-			 nodes_per_chan, &num_dec_muxes);
+			 nodes_per_chan, &num_dec_muxes, NULL);
 
     /* Clip Fc to the number of muxes. */
     if(((Fc / 2) > num_inc_muxes) || ((Fc / 2) > num_dec_muxes))
@@ -1932,7 +1933,7 @@ get_unidir_track_to_chan_seg(INP boolean is_end_sb,
 	    /* Get the list of possible muxes for the N-to-N mapping. */
 	    mux_labels = label_wire_muxes(to_chan, to_seg, seg_details,
 					  max_len, to_dir, nodes_per_chan,
-					  &num_labels);
+					  &num_labels, NULL);
 	}
     else
 	{
@@ -2300,6 +2301,10 @@ load_sblock_pattern_lookup(INP int i,
     enum e_direction dir;
 
     int *seg_branch_dir[4];
+    int *offset;
+    int itype, num_types;
+    int *wire_mux_start_by_type[4];
+    boolean always_branch_at_track_end = FALSE;
 
     Fs_per_side = 1;
     if(Fs != -1)
@@ -2428,10 +2433,13 @@ load_sblock_pattern_lookup(INP int i,
 	    wire_mux_on_track[side] = label_wire_muxes(chan, seg,
 						       seg_details, chan_len,
 						       dir, nodes_per_chan,
-						       &num_wire_muxes[side]);
+						       &num_wire_muxes[side], &wire_mux_start_by_type[side]);
 	}
 
 //    printf("SB (%d,%d)\n", i, j);
+
+	num_types = seg_details[nodes_per_chan-1].index + 1;
+    offset = my_malloc(sizeof(int)*num_types);
 
     for(to_side = 0; to_side < 4; to_side++)
 	{
@@ -2460,6 +2468,10 @@ load_sblock_pattern_lookup(INP int i,
 	     * if you replace "passing" by "incoming" */
 
 	    side_cw_incoming_wire_count = 0;
+	    for (itype = 0; itype < num_types; itype++) {
+	    	assert(wire_mux_start_by_type[to_side][(itype+1) % num_types] < num_wire_muxes[to_side]);
+	    	offset[itype] = wire_mux_start_by_type[to_side][(itype) % num_types];
+	    }
 	    if(incoming_wire_label[side_cw])
 		{
 		    for(itrack = 0; itrack < nodes_per_chan; itrack++)
@@ -2467,7 +2479,6 @@ load_sblock_pattern_lookup(INP int i,
 			    /* Ending wire, or passing wire with sbox. */
 			    if(incoming_wire_label[side_cw][itrack] != UN_SET)
 				{
-
 				    if((is_corner_sblock || is_core_sblock) &&
 				       (incoming_wire_label[side_cw][itrack] <
 					num_ending_wires[side_cw]))
@@ -2479,7 +2490,8 @@ load_sblock_pattern_lookup(INP int i,
 					    assert(num_ending_wires[side_cw]
 						   ==
 						   num_wire_muxes[to_side]);
-					    if ((is_core_sblock && (seg_branch_dir[side_cw][itrack] == 2 || seg_branch_dir[side_cw][itrack] == 3)) ||
+					    if ((is_core_sblock && always_branch_at_track_end) ||
+					    	(is_core_sblock && (seg_branch_dir[side_cw][itrack] == 2 || seg_branch_dir[side_cw][itrack] == 3)) ||
 					    	is_corner_sblock) {
 							sblock_pattern[i][j][side_cw]
 							[to_side][itrack] =
@@ -2499,12 +2511,13 @@ load_sblock_pattern_lookup(INP int i,
 				    	if ((is_core_sblock && (seg_branch_dir[side_cw][itrack] == 2 || seg_branch_dir[side_cw][itrack] == 3)) ||
 				    		(!is_corner_sblock && !is_core_sblock)) {
 				    		sblock_pattern[i][j][side_cw][to_side][itrack] =
-				    				(side_cw_incoming_wire_count * Fs_per_side) % num_wire_muxes[to_side];
+				    				(offset[seg_details[itrack].index] * Fs_per_side) % num_wire_muxes[to_side];
 
 				    		//					    printf("[side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, (side_cw_incoming_wire_count *
 				    		//					    						 2) %
 				    		//					    						num_wire_muxes[to_side]);
 							side_cw_incoming_wire_count++;
+				    		offset[seg_details[itrack].index]++;
 				    	}
 					}
 				}
@@ -2515,6 +2528,10 @@ load_sblock_pattern_lookup(INP int i,
 
 
 	    side_ccw_incoming_wire_count = 0;
+//	    for (itype = 0; itype < num_types; itype++) {
+//			assert(wire_mux_start_by_type[to_side][(itype+1) % num_types] < num_wire_muxes[to_side]);
+//			offset[itype] = wire_mux_start_by_type[to_side][(itype) % num_types];
+//		}
 	    for(itrack = 0; itrack < nodes_per_chan; itrack++)
 		{
 
@@ -2535,7 +2552,9 @@ load_sblock_pattern_lookup(INP int i,
 				    assert(incoming_wire_label[side_ccw]
 					   [itrack] <
 					   num_wire_muxes[to_side]);
-				    if ((is_core_sblock && (seg_branch_dir[side_ccw][itrack] == 1 || seg_branch_dir[side_ccw][itrack] == 3)) ||
+
+				    if ((is_core_sblock && always_branch_at_track_end) ||
+				    	(is_core_sblock && (seg_branch_dir[side_ccw][itrack] == 1 || seg_branch_dir[side_ccw][itrack] == 3)) ||
 						is_corner_sblock) {
 						sblock_pattern[i][j][side_ccw][to_side]
 						[itrack] =
@@ -2555,7 +2574,7 @@ load_sblock_pattern_lookup(INP int i,
 			    	if ((is_core_sblock && (seg_branch_dir[side_ccw][itrack] == 1 || seg_branch_dir[side_ccw][itrack] == 3)) ||
 			    		(!is_corner_sblock && !is_core_sblock)) {
 						sblock_pattern[i][j][side_ccw][to_side][itrack] =
-								((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side) % num_wire_muxes[to_side];
+								(offset[seg_details[itrack].index] * Fs_per_side) % num_wire_muxes[to_side];
 
 	//				    printf("[side_ccw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_ccw, to_side, itrack, ((side_ccw_incoming_wire_count +
 	//							  side_cw_incoming_wire_count) *
@@ -2563,6 +2582,7 @@ load_sblock_pattern_lookup(INP int i,
 	//							num_wire_muxes[to_side]);
 
 						side_ccw_incoming_wire_count++;
+						offset[seg_details[itrack].index]++;
 			    	}
 				}
 			}
@@ -2823,7 +2843,7 @@ label_wire_muxes_for_balance(INP int chan_num,
     /* Generate the normal labels list as the baseline. */
     pre_labels =
 	label_wire_muxes(chan_num, seg_num, seg_details, max_len,
-			 direction, nodes_per_chan, &num_labels);
+			 direction, nodes_per_chan, &num_labels, NULL);
 
     /* Find the min and max mux size. */
     min_opin_mux_size = MAX_SHORT;
@@ -2890,7 +2910,8 @@ label_wire_muxes(INP int chan_num,
 		 INP int max_len,
 		 INP enum e_direction dir,
 		 INP int nodes_per_chan,
-		 OUTP int *num_wire_muxes)
+		 OUTP int *num_wire_muxes,
+		 OUTP int **wire_mux_start_by_type)
 {
 
     /* Labels the muxes on that side (seg_num, chan_num, direction). The returned array
@@ -2900,6 +2921,15 @@ label_wire_muxes(INP int chan_num,
     int itrack, start, end, num_labels, pass;
     int *labels = NULL;
     boolean is_endpoint;
+    int itype, num_types, ilabel;
+
+    num_types = seg_details[nodes_per_chan-1].index + 1;
+    if (wire_mux_start_by_type) {
+    	*wire_mux_start_by_type = my_malloc(sizeof(int) * num_types);
+    	for (itype = 0; itype < num_types; itype++) {
+			(*wire_mux_start_by_type)[itype] = UN_SET;
+		}
+    }
 
     /* COUNT pass then a LOAD pass */
     num_labels = 0;
@@ -2946,11 +2976,15 @@ label_wire_muxes(INP int chan_num,
 		}
 	}
 
-//    printf("[num_labels_before] ");
-//	for (itrack = 0; itrack < num_labels; itrack++) {
-//		printf("%d ", labels[itrack]);
-//	}
-//	printf("\n");
+    if (wire_mux_start_by_type) {
+		for (ilabel = 0; ilabel < num_labels; ilabel++) {
+			itrack = labels[ilabel];
+			itype = seg_details[itrack].index;
+			if ((*wire_mux_start_by_type)[itype] == UN_SET) {
+				(*wire_mux_start_by_type)[itype] = ilabel;
+			}
+		}
+    }
 
     *num_wire_muxes = num_labels;
     return labels;
