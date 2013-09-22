@@ -1939,6 +1939,10 @@ get_unidir_track_to_chan_seg(INP boolean is_end_sb,
 	{
 	    assert(is_fringe || !is_end_sb);
 
+//	    mux_labels = label_wire_muxes(to_chan, to_seg, seg_details,
+//	    					  max_len, to_dir, nodes_per_chan,
+//	    					  &num_labels, NULL);
+
 	    mux_labels = label_wire_muxes_for_balance(to_chan, to_seg,
 						      seg_details, max_len,
 						      to_dir, nodes_per_chan,
@@ -1966,10 +1970,19 @@ get_unidir_track_to_chan_seg(INP boolean is_end_sb,
 
     /* Get the target label */
     to_mux = sblock_pattern[sb_x][sb_y][from_side][to_side][from_track];
+
+
+//    assert(sblock_pattern[2][2][from_side][to_side][from_track] == sblock_pattern[3][2][from_side][to_side][from_track]);
     //assert(to_mux != UN_SET);
     if (to_mux == UN_SET) {
     	return 0;
     }
+
+//    if (sb_x == 1 && sb_x == sb_y) {
+//    	to_track = mux_labels[(to_mux + 0) % num_labels];
+//    	if (from_side == 2 && to_side == 0)
+//    	printf("from_side: %d to_side: %d from_track: %d to_track: %d\n", from_side, to_side, from_track, to_track);
+//	}
 
     /* Handle Fs > 3 but assigning consecutive muxes. */
     count = 0;
@@ -2039,42 +2052,42 @@ is_sbox(INP int chan,
     return seg_details[track].sb[ofs];
 }
 
-int
-get_branch_direction(INP int chan,
-	INP int wire_seg,
-	INP int sb_seg,
-	INP int track,
-	INP t_seg_details * seg_details,
-	INP enum e_directionality directionality)
-{
-
-    int start, length, ofs, fac;
-
-    fac = 1;
-    if(UNI_DIRECTIONAL == directionality)
-	{
-	    fac = 2;
-	}
-
-    start = seg_details[track].start;
-    length = seg_details[track].length;
-
-    /* Make sure they gave us correct start */
-    wire_seg = get_seg_start(seg_details, track, chan, wire_seg);
-
-    ofs = sb_seg - wire_seg + 1;	/* Ofset 0 is behind us, so add 1 */
-
-    assert(ofs >= 0);
-    assert(ofs < (length + 1));
-
-    /* If unidir segment that is going backwards, we need to flip the ofs */
-    if((ofs % fac) > 0)
-	{
-	    ofs = length - ofs;
-	}
-
-    return seg_details[track].sb[ofs]; //important modification to check whether there's a branch
-}
+//int
+//get_branch_direction(INP int chan,
+//	INP int wire_seg,
+//	INP int sb_seg,
+//	INP int track,
+//	INP t_seg_details * seg_details,
+//	INP enum e_directionality directionality)
+//{
+//
+//    int start, length, ofs, fac;
+//
+//    fac = 1;
+//    if(UNI_DIRECTIONAL == directionality)
+//	{
+//	    fac = 2;
+//	}
+//
+//    start = seg_details[track].start;
+//    length = seg_details[track].length;
+//
+//    /* Make sure they gave us correct start */
+//    wire_seg = get_seg_start(seg_details, track, chan, wire_seg);
+//
+//    ofs = sb_seg - wire_seg + 1;	/* Ofset 0 is behind us, so add 1 */
+//
+//    assert(ofs >= 0);
+//    assert(ofs < (length + 1));
+//
+//    /* If unidir segment that is going backwards, we need to flip the ofs */
+//    if((ofs % fac) > 0)
+//	{
+//	    ofs = length - ofs;
+//	}
+//
+//    return seg_details[track].sb[ofs]; //important modification to check whether there's a branch
+//}
 
 static void
 get_switch_type(boolean is_from_sbox,
@@ -2302,9 +2315,12 @@ load_sblock_pattern_lookup(INP int i,
 
     int *seg_branch_dir[4];
     int *offset;
-    int itype, num_types;
+    int itype, num_types, from_type;
     int *wire_mux_start_by_type[4];
-    boolean always_branch_at_track_end = FALSE;
+    boolean always_branch_at_track_end = TRUE;
+    boolean uniform_track_distribution = TRUE;
+    boolean same_track_type = FALSE;
+    int label;
 
     Fs_per_side = 1;
     if(Fs != -1)
@@ -2469,9 +2485,17 @@ load_sblock_pattern_lookup(INP int i,
 
 	    side_cw_incoming_wire_count = 0;
 	    for (itype = 0; itype < num_types; itype++) {
-	    	assert(wire_mux_start_by_type[to_side][(itype+1) % num_types] < num_wire_muxes[to_side]);
-	    	offset[itype] = wire_mux_start_by_type[to_side][(itype) % num_types];
+	    	//assert(wire_mux_start_by_type[to_side][(itype+1) % num_types] < num_wire_muxes[to_side]);
+	    	if (same_track_type) {
+	    		offset[itype] = wire_mux_start_by_type[to_side][(itype) % num_types];
+	    	} else {
+	    		offset[itype] = wire_mux_start_by_type[to_side][(itype+1) % num_types];
+	    	}
 	    }
+//	    if (i > 0 && j > 0) {
+//	    printf("num_passing_wires[%d]: %d num_wire_muxes[%d]: %d \n", side_cw, num_incoming_wires[side_cw]-num_ending_wires[side_cw], to_side, num_wire_muxes[to_side] );
+//	    printf("num_passing_wires[%d]: %d num_wire_muxes[%d]: %d \n", side_cw, num_incoming_wires[side_cw]-num_ending_wires[side_cw], to_side, num_wire_muxes[to_side] );
+//	    }
 	    if(incoming_wire_label[side_cw])
 		{
 		    for(itrack = 0; itrack < nodes_per_chan; itrack++)
@@ -2508,16 +2532,46 @@ load_sblock_pattern_lookup(INP int i,
 					    /* These are passing wires with sbox only for core sblocks
 					     * or passing and ending wires (for fringe cases). */
 				    	/* fringe block || passing wire */
+				    	/* num_passing_wires[side_cw] > num_wire_muxes[to_side] is POSSIBLE! */
+				    	/* i should overload the wire muxes of a certain type? */
+//				    	if (i > 0 && j > 0) {
+//				    	printf("LOL\n");
+//				    	}
 				    	if ((is_core_sblock && (seg_branch_dir[side_cw][itrack] == 2 || seg_branch_dir[side_cw][itrack] == 3)) ||
 				    		(!is_corner_sblock && !is_core_sblock)) {
-				    		sblock_pattern[i][j][side_cw][to_side][itrack] =
-				    				(offset[seg_details[itrack].index] * Fs_per_side) % num_wire_muxes[to_side];
+
+				    		from_type = seg_details[itrack].index;
+//				    		label = (offset[from_type] * Fs_per_side) % num_wire_muxes[to_side];
+//				    		if (i > 0 && j > 0) {
+//				    			if (from_type != seg_details[wire_mux_on_track[to_side][label]].index) {
+//				    				printf("[side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, label);
+//				    			} else {
+//				    				printf("[MATCHING FAIL][side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, label);
+//				    			}
+//				    		}
+				    		if (uniform_track_distribution) {
+				    			sblock_pattern[i][j][side_cw][to_side][itrack] =
+				    					(side_cw_incoming_wire_count * Fs_per_side) % num_wire_muxes[to_side];
+				    		} else {
+				    			sblock_pattern[i][j][side_cw][to_side][itrack] =
+				    					(offset[from_type] * Fs_per_side) % num_wire_muxes[to_side];
+				    		}
 
 				    		//					    printf("[side_cw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_cw, to_side, itrack, (side_cw_incoming_wire_count *
 				    		//					    						 2) %
 				    		//					    						num_wire_muxes[to_side]);
 							side_cw_incoming_wire_count++;
-				    		offset[seg_details[itrack].index]++;
+				    		offset[from_type]++;
+
+				    		if (same_track_type) {
+								if (offset[from_type] == wire_mux_start_by_type[to_side][(from_type+1) % num_types]) {
+									offset[from_type] = wire_mux_start_by_type[to_side][(from_type) % num_types];
+								}
+				    		} else {
+								if (offset[from_type] == wire_mux_start_by_type[to_side][(from_type+2) % num_types]) {
+									offset[from_type] = wire_mux_start_by_type[to_side][(from_type+1) % num_types];
+								}
+				    		}
 				    	}
 					}
 				}
@@ -2528,10 +2582,14 @@ load_sblock_pattern_lookup(INP int i,
 
 
 	    side_ccw_incoming_wire_count = 0;
-//	    for (itype = 0; itype < num_types; itype++) {
-//			assert(wire_mux_start_by_type[to_side][(itype+1) % num_types] < num_wire_muxes[to_side]);
-//			offset[itype] = wire_mux_start_by_type[to_side][(itype) % num_types];
-//		}
+	    for (itype = 0; itype < num_types; itype++) {
+			//assert(wire_mux_start_by_type[to_side][(itype+1) % num_types] < num_wire_muxes[to_side]);
+			if (same_track_type) {
+				offset[itype] = wire_mux_start_by_type[to_side][(itype) % num_types];
+			} else {
+				offset[itype] = wire_mux_start_by_type[to_side][(itype+1) % num_types];
+			}
+		}
 	    for(itrack = 0; itrack < nodes_per_chan; itrack++)
 		{
 
@@ -2573,16 +2631,31 @@ load_sblock_pattern_lookup(INP int i,
 			    	/* fringe block || passing wire */
 			    	if ((is_core_sblock && (seg_branch_dir[side_ccw][itrack] == 1 || seg_branch_dir[side_ccw][itrack] == 3)) ||
 			    		(!is_corner_sblock && !is_core_sblock)) {
-						sblock_pattern[i][j][side_ccw][to_side][itrack] =
-								(offset[seg_details[itrack].index] * Fs_per_side) % num_wire_muxes[to_side];
+			    		from_type = seg_details[itrack].index;
+//						label = (offset[from_type] * Fs_per_side) % num_wire_muxes[to_side];
 
-	//				    printf("[side_ccw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_ccw, to_side, itrack, ((side_ccw_incoming_wire_count +
-	//							  side_cw_incoming_wire_count) *
-	//							 2) %
-	//							num_wire_muxes[to_side]);
+						if (uniform_track_distribution) {
+							sblock_pattern[i][j][side_ccw][to_side][itrack] =
+									((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side) % num_wire_muxes[to_side];
+						} else {
+							sblock_pattern[i][j][side_ccw][to_side][itrack] =
+									(offset[from_type] * Fs_per_side) % num_wire_muxes[to_side];
+						}
+
+					    //printf("[side_ccw] from_side: %d to_side: %d from_track: %d to_mux: %d\n", side_ccw, to_side, itrack, (offset[seg_details[itrack].index] * Fs_per_side) % num_wire_muxes[to_side]);
 
 						side_ccw_incoming_wire_count++;
-						offset[seg_details[itrack].index]++;
+
+						offset[from_type]++;
+						if (same_track_type) {
+							if (offset[from_type] == wire_mux_start_by_type[to_side][(from_type+1) % num_types]) {
+								offset[from_type] = wire_mux_start_by_type[to_side][(from_type) % num_types];
+							}
+						} else {
+							if (offset[from_type] == wire_mux_start_by_type[to_side][(from_type+2) % num_types]) {
+								offset[from_type] = wire_mux_start_by_type[to_side][(from_type+1) % num_types];
+							}
+						}
 			    	}
 				}
 			}
@@ -2625,11 +2698,17 @@ load_sblock_pattern_lookup(INP int i,
 					    else
 						{
 						    /* These are passing wires with sbox for core sblocks */
-						    sblock_pattern[i][j]
-							[side_opp][to_side]
-							[itrack] =
-							((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side + opp_incoming_wire_count * (Fs_per_side - 1)) % num_wire_muxes[to_side];
-						    opp_incoming_wire_count++;
+					    	/* does not affect rr generation because the lookup is not used at all */
+//					    	label = ((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side + opp_incoming_wire_count * (Fs_per_side - 1)) % num_wire_muxes[to_side];
+//					    	if (i == 1 && j == 1) {
+//					    		printf("[%d,%d][side_opp] from_side: %d to_side: %d from_track: %d to_track: %d\n", i, j, side_opp, to_side, itrack, wire_mux_on_track[to_side][label]);
+//
+//					    	}
+//						    sblock_pattern[i][j]
+//							[side_opp][to_side]
+//							[itrack] =
+//							((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side + opp_incoming_wire_count * (Fs_per_side - 1)) % num_wire_muxes[to_side];
+//						    opp_incoming_wire_count++;
 						}
 					}
 				    else
@@ -2650,11 +2729,13 @@ load_sblock_pattern_lookup(INP int i,
 					    else
 						{
 						    /* These are passing wires with sbox for fringe sblocks */
-						    sblock_pattern[i][j]
-							[side_opp][to_side]
-							[itrack] =
-							((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side + opp_incoming_wire_count * (Fs_per_side - 1)) % num_wire_muxes[to_side];
-						    opp_incoming_wire_count++;
+					    	/* does not affect rr generation because the lookup is not used at all */
+					    	/* get_track_to_tracks is not called with from_type == to_type for middle of the tracks */
+//						    sblock_pattern[i][j]
+//							[side_opp][to_side]
+//							[itrack] =
+//							((side_ccw_incoming_wire_count + side_cw_incoming_wire_count) * Fs_per_side + opp_incoming_wire_count * (Fs_per_side - 1)) % num_wire_muxes[to_side];
+//						    opp_incoming_wire_count++;
 						}
 					}
 				}
@@ -2990,7 +3071,7 @@ label_wire_muxes(INP int chan_num,
     return labels;
 }
 
-//get_rr_node_segment_info
+
 
 static int *
 label_incoming_wires(INP int chan_num,

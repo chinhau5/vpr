@@ -1411,6 +1411,7 @@ build_rr_xchan(INP int i,
 	    if(istart > 1)
 		{
 	    	//connect backwards
+	    	/* needs to be called only ONCE to, therefore the need for rr_edge_done */
 		    num_edges += get_track_to_tracks(j, istart, itrack, CHANX,
 						     istart - 1, CHANX, nx,
 						     nodes_per_chan,
@@ -1428,6 +1429,7 @@ build_rr_xchan(INP int i,
 	    if(iend < nx)
 		{
 	    	//connect forward
+	    	/* needs to be called only ONCE to, therefore the need for rr_edge_done */
 		    num_edges += get_track_to_tracks(j, istart, itrack, CHANX,
 						     iend + 1, CHANX, nx,
 						     nodes_per_chan,

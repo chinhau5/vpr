@@ -20,6 +20,8 @@ load_sblock_pattern_lookup
 /* GENERAL INFO */
 chan_num >= 0, seg_num >= 1
 
+SB => (0, 0) -> (nx, ny)
+
 update_screen -> draw_screen
 
 for each channel {
@@ -27,4 +29,7 @@ for each channel {
 		for each track {
 			get_track_to_tracks {
 				for each track segment {
+
+label_wire_mux: label -> track_num
+label_incoming_wire: track_num -> label
 				
