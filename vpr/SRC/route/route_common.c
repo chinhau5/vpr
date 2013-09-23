@@ -98,6 +98,31 @@ static void adjust_one_rr_occ_and_pcost(int inode,
 
 /************************** Subroutine definitions ***************************/
 
+void print_rr(FILE *fp, int inode, float cost, float backward_path_cost) {
+	char *node_type[] = { "SOURCE", "SINK", "IPIN", "OPIN", "CHANX", "CHANY", "INTRA_CLUSTER_EDGE", "NUM_RR_TYPES" };
+
+	DEBUG_FPRINTF(fp, "[%5d] %6s ", inode, node_type[rr_node[inode].type]);
+
+	if (rr_node[inode].direction == INC_DIRECTION) {
+		DEBUG_FPRINTF(fp, "(%d,%d) ", rr_node[inode].xlow, rr_node[inode].ylow);
+		if((rr_node[inode].xlow != rr_node[inode].xhigh) || (rr_node[inode].ylow != rr_node[inode].yhigh)) {
+			DEBUG_FPRINTF(fp, "-> (%d,%d) ", rr_node[inode].xhigh, rr_node[inode].yhigh);
+		}
+	} else if (rr_node[inode].direction == DEC_DIRECTION) {
+		DEBUG_FPRINTF(fp, "(%d,%d) ", rr_node[inode].xhigh, rr_node[inode].yhigh);
+		if((rr_node[inode].xlow != rr_node[inode].xhigh) || (rr_node[inode].ylow != rr_node[inode].yhigh)) {
+			DEBUG_FPRINTF(fp, "-> (%d,%d) ", rr_node[inode].xlow, rr_node[inode].ylow);
+		}
+	} else {
+		DEBUG_FPRINTF(fp, "(%d,%d) ", rr_node[inode].xlow, rr_node[inode].ylow);
+		if((rr_node[inode].xlow != rr_node[inode].xhigh) || (rr_node[inode].ylow != rr_node[inode].yhigh)) {
+			DEBUG_FPRINTF(fp, "-> (%d,%d) ", rr_node[inode].xhigh, rr_node[inode].yhigh);
+		}
+	}
+
+	DEBUG_FPRINTF(fp, "occ: %d cost: %e backward_cost: %e\n", rr_node[inode].occ, cost, backward_path_cost);
+}
+
 void
 save_routing(struct s_trace **best_routing,
 	     t_ivec ** clb_opins_used_locally,
@@ -676,6 +701,7 @@ node_to_heap(int inode,
  * timing-driven router -- the breadth-first router ignores them.           */
 
     struct s_heap *hptr;
+    extern FILE *route_details;
 
     if(cost >= rr_node_route_inf[inode].path_cost)
 	return;
@@ -688,6 +714,9 @@ node_to_heap(int inode,
     hptr->backward_path_cost = backward_path_cost;
     hptr->R_upstream = R_upstream;
     add_to_heap(hptr);
+
+    DEBUG_FPRINTF(route_details, "\t[node_to_heap] ");
+	print_rr(route_details, inode, cost, backward_path_cost);
 }
 
 

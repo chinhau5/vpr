@@ -38,7 +38,8 @@ static float get_timing_driven_expected_cost(int inode,
 
 static int get_expected_segs_to_target(int inode,
 				       int target_node,
-				       int *num_segs_ortho_dir_ptr);
+				       int *num_segs_ortho_dir_ptr,
+				       int *ortho_dir);
 
 static void update_rr_base_costs(int inet,
 				 float largest_criticality);
@@ -50,13 +51,7 @@ static int mark_node_expansion_by_bin(int inet, int target_node, t_rt_node * rt_
 
 /************************ Subroutine definitions *****************************/
 
-FILE *route_debug;
-
-#ifdef PRINT_ROUTING_VERBOSE
-#define ROUTE_VERBOSE_PRINT(msg, ...) fprintf(route_debug, msg __VA_ARGS__)
-#else
-#define ROUTE_VERBOSE_PRINT(msg, ...)
-#endif
+FILE *route_details;
 
 boolean
 try_timing_driven_route(struct s_router_opts router_opts,
@@ -352,6 +347,10 @@ timing_driven_route_net(int inet,
     struct s_trace *new_route_start_tptr;
 	int highfanout_rlim;
 
+	char buffer[256];
+	//sprintf(buffer, "/home/chinhau5/vbox_shared/dump/%d.net", inet);
+	//route_details = fopen(buffer, "w");
+
 /* Rip-up any old routing. */
 
     pathfinder_update_one_cost(trace_head[inet], -1, pres_fac);
@@ -377,15 +376,23 @@ timing_driven_route_net(int inet,
 
     rt_root = init_route_tree_to_source(inet);
 
+    DEBUG_FPRINTF(route_details, "[SOURCE] ");
+    print_rr(route_details, net_rr_terminals[inet][0], 0, 0);
+
     for(itarget = 1; itarget <= num_sinks; itarget++)
 	{
 	    target_pin = sink_order[itarget];
 	    target_node = net_rr_terminals[inet][target_pin];
 
+
+	    DEBUG_FPRINTF(route_details, "[TARGET %d] ", itarget);
+	    print_rr(route_details, target_node, 0, 0);
+
 	    target_criticality = pin_criticality[target_pin];
 
 		highfanout_rlim = mark_node_expansion_by_bin(inet, target_node, rt_root);
 
+		DEBUG_FPRINTF(route_details, "[add_route_tree_to_heap]\n");
 	    add_route_tree_to_heap(rt_root, target_node, target_criticality,
 				   astar_fac);
 
@@ -402,6 +409,9 @@ timing_driven_route_net(int inet,
 
 	    while(inode != target_node)
 		{
+	    	DEBUG_FPRINTF(route_details, "[current_node] ");
+	    	print_rr(route_details, inode, current->cost, current->backward_path_cost);
+
 		    old_tcost = rr_node_route_inf[inode].path_cost;
 		    new_tcost = current->cost;
 
@@ -435,6 +445,7 @@ timing_driven_route_net(int inet,
 				add_to_mod_list(&rr_node_route_inf[inode].
 						path_cost);
 
+			    DEBUG_FPRINTF(route_details, "[timing_driven_expand_neighbours]\n");
 			    timing_driven_expand_neighbours(current, inet,
 							    bend_cost,
 							    target_criticality,
@@ -465,6 +476,7 @@ timing_driven_route_net(int inet,
  * point.                                                                   */
 
 	    //we're done with routing ONE sink at this point in time
+	    DEBUG_FPRINTF(route_details, "\n");
 
 	    rr_node_route_inf[inode].target_flag--;	/* Connected to this SINK. */
 	    new_route_start_tptr = update_traceback(current, inet);
@@ -477,6 +489,7 @@ timing_driven_route_net(int inet,
 	}
 
     //we're done with routing ALL the sinks
+    //fclose(route_details);
 
 /* For later timing analysis. */
 
@@ -549,6 +562,8 @@ timing_driven_expand_neighbours(struct s_heap *current,
     t_rr_type from_type, to_type;
     float new_tot_cost, old_back_pcost, new_back_pcost, R_upstream;
     float new_R_upstream, Tdel;
+    int num_segs_same_dir, num_segs_ortho_dir, ortho_dir, num_direct_ortho;
+    float extra_cost;
 
     inode = current->index;
     old_back_pcost = current->backward_path_cost;
@@ -557,6 +572,40 @@ timing_driven_expand_neighbours(struct s_heap *current,
 
     target_x = rr_node[target_node].xhigh;
     target_y = rr_node[target_node].yhigh;
+
+    if (rr_node[inode].type == CHANX || rr_node[inode].type == CHANY) {
+    	num_segs_same_dir =	get_expected_segs_to_target(inode, target_node, &num_segs_ortho_dir, &ortho_dir);
+
+		num_direct_ortho = 0;
+
+		for (iconn = 0; iconn < num_edges; iconn++) {
+			to_node = rr_node[inode].edges[iconn];
+
+			if (num_segs_ortho_dir > 0) {
+				if (rr_node[inode].type == CHANX) {
+					if (rr_node[to_node].type == CHANY) {
+						assert(ortho_dir == TOP || ortho_dir == BOTTOM);
+						//if (rr_node[to_node].occ < rr_node[to_node].capacity) {
+						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == TOP) ||
+							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == BOTTOM)) {
+							num_direct_ortho++;
+						}
+						//}
+					}
+				} else if (rr_node[inode].type == CHANY) {
+					if (rr_node[to_node].type == CHANX) {
+						assert(ortho_dir == LEFT || ortho_dir == RIGHT);
+						//if (rr_node[to_node].occ < rr_node[to_node].capacity) {
+						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == RIGHT) ||
+							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == LEFT)) {
+							num_direct_ortho++;
+						}
+						//}
+					}
+				}
+			}
+		}
+    }
 
     for(iconn = 0; iconn < num_edges; iconn++)
 	{
@@ -586,6 +635,57 @@ timing_driven_expand_neighbours(struct s_heap *current,
 	    if(to_type == IPIN && (rr_node[to_node].xhigh != target_x ||
 				   rr_node[to_node].yhigh != target_y))
 		continue;
+
+	    extra_cost = 0;
+//
+//	    if (num_segs_ortho_dir > 0) {
+//	    	if (rr_node[inode].type == CHANX) {
+//	    		if (rr_node[to_node].type == CHANY) {
+//	    			assert(ortho_dir == TOP || ortho_dir == BOTTOM);
+//	    			if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == BOTTOM) ||
+//	    				(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == TOP)) {
+//	    				extra_cost = rr_indexed_data[rr_node[to_node].cost_index].base_cost;
+//	    			}
+//	    		}
+//	    	} else if (rr_node[inode].type == CHANY) {
+//	    		if (rr_node[to_node].type == CHANX) {
+//	    			assert(ortho_dir == LEFT || ortho_dir == RIGHT);
+//					if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == LEFT) ||
+//						(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == RIGHT)) {
+//						extra_cost = rr_indexed_data[rr_node[to_node].cost_index].base_cost;
+//					}
+//				}
+//	    	}
+//	    }
+//
+//	    extra_cost *= 0.0001;
+//	    //extra_cost = 0;
+
+//	    if (rr_node[inode].type == CHANX || rr_node[inode].type == CHANY) {
+//			if (num_segs_ortho_dir > 0) {
+//				if (rr_node[inode].type == CHANX) {
+//					if (rr_node[to_node].type == CHANY) {
+//						assert(ortho_dir == TOP || ortho_dir == BOTTOM);
+//						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == BOTTOM) ||
+//							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == TOP)) {
+//							if (num_direct_ortho > 0) {
+//								continue;
+//							}
+//						}
+//					}
+//				} else if (rr_node[inode].type == CHANY) {
+//					if (rr_node[to_node].type == CHANX) {
+//						assert(ortho_dir == LEFT || ortho_dir == RIGHT);
+//						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == LEFT) ||
+//							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == RIGHT)) {
+//							if (num_direct_ortho > 0) {
+//								continue;
+//							}
+//						}
+//					}
+//				}
+//			}
+//	    }
 
 
 /* new_back_pcost stores the "known" part of the cost to this node -- the   *
@@ -625,7 +725,7 @@ timing_driven_expand_neighbours(struct s_heap *current,
 	    new_tot_cost = new_back_pcost + astar_fac *
 		get_timing_driven_expected_cost(to_node, target_node,
 						criticality_fac,
-						new_R_upstream);
+						new_R_upstream) + extra_cost;
 
 	    node_to_heap(to_node, new_tot_cost, inode, iconn, new_back_pcost,
 			 new_R_upstream);
@@ -651,6 +751,7 @@ get_timing_driven_expected_cost(int inode,
     int iedge, num_direct_ortho_edge, num_chan_edges;
     int child_inode;
     float cost;
+    int ortho_dir; /*dummy*/
 
     rr_type = rr_node[inode].type;
 
@@ -658,7 +759,7 @@ get_timing_driven_expected_cost(int inode,
 	{
 	    num_segs_same_dir =
 		get_expected_segs_to_target(inode, target_node,
-					    &num_segs_ortho_dir);
+					    &num_segs_ortho_dir, &ortho_dir);
 	    cost_index = rr_node[inode].cost_index;
 	    ortho_cost_index = rr_indexed_data[cost_index].ortho_cost_index;
 
@@ -818,7 +919,8 @@ get_timing_driven_expected_cost(int inode,
 static int
 get_expected_segs_to_target(int inode,
 			    int target_node,
-			    int *num_segs_ortho_dir_ptr)
+			    int *num_segs_ortho_dir_ptr,
+			    int *ortho_dir)
 {
 
 /* Returns the number of segments the same type as inode that will be needed *
@@ -851,12 +953,14 @@ get_expected_segs_to_target(int inode,
 		    *num_segs_ortho_dir_ptr =
 			ROUND_UP((ylow - target_y + 1.) * ortho_inv_length);
 		    no_need_to_pass_by_clb = 1;
+		    *ortho_dir = BOTTOM;
 		}
 	    else if(ylow < target_y - 1)
 		{		/* Below the CLB bottom? */
 		    *num_segs_ortho_dir_ptr = ROUND_UP((target_y - ylow) *
 						       ortho_inv_length);
 		    no_need_to_pass_by_clb = 1;
+		    *ortho_dir = TOP;
 		}
 	    else
 		{		/* In a row that passes by target CLB */
@@ -899,12 +1003,14 @@ get_expected_segs_to_target(int inode,
 		    *num_segs_ortho_dir_ptr =
 			ROUND_UP((xlow - target_x + 1.) * ortho_inv_length);
 		    no_need_to_pass_by_clb = 1;
+		    *ortho_dir = LEFT;
 		}
 	    else if(xlow < target_x - 1)
 		{		/* Left of and not adjacent to the CLB? */
 		    *num_segs_ortho_dir_ptr = ROUND_UP((target_x - xlow) *
 						       ortho_inv_length);
 		    no_need_to_pass_by_clb = 1;
+		    *ortho_dir = RIGHT;
 		}
 	    else
 		{		/* In a column that passes by target CLB */

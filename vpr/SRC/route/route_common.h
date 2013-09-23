@@ -128,3 +128,10 @@ void free_trace_structs(void);
 void reserve_locally_used_opins(float pres_fac,
 				boolean rip_up_local_opins,
 				t_ivec ** clb_opins_used_locally);
+
+void print_rr(FILE *fp, int inode, float cost, float backward_path_cost);
+#ifdef DEBUG_ROUTE
+#define DEBUG_FPRINTF(...) fprintf(__VA_ARGS__)
+#else
+#define DEBUG_FPRINTF(...)
+#endif

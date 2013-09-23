@@ -2046,9 +2046,9 @@ highlight_nets(char *message)
 		    if(rr_node_color[tptr->index] != BLACK)
 		    {
 			    net_color[inet] = rr_node_color[tptr->index];
-			    sprintf(message, "%s  ||  Net:%d %d", message,inet,
-					    trace_head[inet]->index
-				   );
+			    //sprintf(message, "%s  ||  Net:%d %d", message,inet,
+				//	    trace_head[inet]->index
+				//   );
 			    break;
 		    }
 	    }

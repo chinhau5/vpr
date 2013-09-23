@@ -2317,7 +2317,7 @@ load_sblock_pattern_lookup(INP int i,
     int *offset;
     int itype, num_types, from_type;
     int *wire_mux_start_by_type[4];
-    boolean always_branch_at_track_end = TRUE;
+    boolean always_branch_at_track_end = FALSE;
     boolean uniform_track_distribution = TRUE;
     boolean same_track_type = FALSE;
     int label;
