@@ -361,6 +361,10 @@ build_rr_graph(INP t_graph_type graph_type,
 	    dump_seg_details(seg_details, nodes_per_chan, "seg_details.txt");
 #endif /* CREATE_ECHO_FILES */
 	    g_seg_details = seg_details;
+
+	    int dtrack = 2;
+	    printf("THIS IS SEG START: %d\n", get_seg_start(seg_details, dtrack, 0, 1));
+	    printf("THIS IS SEG END: %d\n", get_seg_end(seg_details, dtrack, get_seg_start(seg_details, dtrack, 0, 1), 0, 100));
 	}
     /* END SEG_DETAILS */
 

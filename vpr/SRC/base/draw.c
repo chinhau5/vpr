@@ -2247,7 +2247,7 @@ highlight_blocks(float x,
 	
     if(!hit)
 	{
-	    highlight_rr_nodes_by_level(x, y);
+	    highlight_rr_nodes(x, y);
 	    /* update_message(default_message);
 	       drawscreen(); */
 	    return;

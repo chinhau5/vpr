@@ -53,6 +53,40 @@ static int mark_node_expansion_by_bin(int inet, int target_node, t_rt_node * rt_
 
 FILE *route_details;
 
+void print_rr_congestion()
+{
+	int inode, itype;
+	int num_overused_rr_node_by_type[NUM_RR_TYPES];
+	int num_overused_rr_node;
+	int num_used_rr_node;
+	int num_used_rr_node_by_type[NUM_RR_TYPES];
+	char *type_name[NUM_RR_TYPES] = { "SOURCE", "SINK", "IPIN", "OPIN", "CHANX", "CHANY", "INTRA_CLUSTER_EDGE" };
+
+	for (itype = 0; itype < NUM_RR_TYPES; itype++) {
+		num_overused_rr_node_by_type[itype] = 0;
+		num_used_rr_node_by_type[itype] = 0;
+	}
+	num_overused_rr_node = 0;
+	num_used_rr_node = 0;
+
+	for (inode = 0; inode < num_rr_nodes; inode++) {
+		if (rr_node[inode].occ > 0) {
+			num_used_rr_node++;
+			num_used_rr_node_by_type[rr_node[inode].type]++;
+		}
+		if (rr_node[inode].occ > rr_node[inode].capacity) {
+			num_overused_rr_node++;
+			num_overused_rr_node_by_type[rr_node[inode].type]++;
+		}
+	}
+
+	printf("Total: %d Overused: %d Percent: %.4f\n", num_used_rr_node, num_overused_rr_node, (float)num_overused_rr_node/num_used_rr_node);
+	for (itype = 0; itype < NUM_RR_TYPES; itype++) {
+		printf("Type: %20s Total: %6d Overused: %6d Percent: %.4f\n", type_name[itype], num_used_rr_node_by_type[itype], num_overused_rr_node_by_type[itype], (float)num_overused_rr_node_by_type[itype]/num_used_rr_node_by_type[itype]);
+	}
+	printf("\n");
+}
+
 boolean
 try_timing_driven_route(struct s_router_opts router_opts,
 			float **net_slack,
@@ -239,6 +273,7 @@ try_timing_driven_route(struct s_router_opts router_opts,
 	    load_timing_graph_net_delays(net_delay);
 	    T_crit = load_net_slack(net_slack, 0);
 	    printf("T_crit: %g.\n", T_crit);
+	    print_rr_congestion();
 		fflush(stdout);
 	}
 
@@ -585,22 +620,22 @@ timing_driven_expand_neighbours(struct s_heap *current,
 				if (rr_node[inode].type == CHANX) {
 					if (rr_node[to_node].type == CHANY) {
 						assert(ortho_dir == TOP || ortho_dir == BOTTOM);
-						//if (rr_node[to_node].occ < rr_node[to_node].capacity) {
+						if (rr_node[to_node].occ < rr_node[to_node].capacity) {
 						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == TOP) ||
 							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == BOTTOM)) {
 							num_direct_ortho++;
 						}
-						//}
+						}
 					}
 				} else if (rr_node[inode].type == CHANY) {
 					if (rr_node[to_node].type == CHANX) {
 						assert(ortho_dir == LEFT || ortho_dir == RIGHT);
-						//if (rr_node[to_node].occ < rr_node[to_node].capacity) {
+						if (rr_node[to_node].occ < rr_node[to_node].capacity) {
 						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == RIGHT) ||
 							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == LEFT)) {
 							num_direct_ortho++;
 						}
-						//}
+						}
 					}
 				}
 			}
@@ -661,31 +696,31 @@ timing_driven_expand_neighbours(struct s_heap *current,
 //	    extra_cost *= 0.0001;
 //	    //extra_cost = 0;
 
-//	    if (rr_node[inode].type == CHANX || rr_node[inode].type == CHANY) {
-//			if (num_segs_ortho_dir > 0) {
-//				if (rr_node[inode].type == CHANX) {
-//					if (rr_node[to_node].type == CHANY) {
-//						assert(ortho_dir == TOP || ortho_dir == BOTTOM);
-//						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == BOTTOM) ||
-//							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == TOP)) {
-//							if (num_direct_ortho > 0) {
-//								continue;
-//							}
-//						}
-//					}
-//				} else if (rr_node[inode].type == CHANY) {
-//					if (rr_node[to_node].type == CHANX) {
-//						assert(ortho_dir == LEFT || ortho_dir == RIGHT);
-//						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == LEFT) ||
-//							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == RIGHT)) {
-//							if (num_direct_ortho > 0) {
-//								continue;
-//							}
-//						}
-//					}
-//				}
-//			}
-//	    }
+	    if (rr_node[inode].type == CHANX || rr_node[inode].type == CHANY) {
+			if (num_segs_ortho_dir > 0) {
+				if (rr_node[inode].type == CHANX) {
+					if (rr_node[to_node].type == CHANY) {
+						assert(ortho_dir == TOP || ortho_dir == BOTTOM);
+						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == BOTTOM) ||
+							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == TOP)) {
+							if (num_direct_ortho > 3) {
+								continue;
+							}
+						}
+					}
+				} else if (rr_node[inode].type == CHANY) {
+					if (rr_node[to_node].type == CHANX) {
+						assert(ortho_dir == LEFT || ortho_dir == RIGHT);
+						if ((rr_node[to_node].direction == INC_DIRECTION && ortho_dir == LEFT) ||
+							(rr_node[to_node].direction == DEC_DIRECTION && ortho_dir == RIGHT)) {
+							if (num_direct_ortho > 3) {
+								continue;
+							}
+						}
+					}
+				}
+			}
+	    }
 
 
 /* new_back_pcost stores the "known" part of the cost to this node -- the   *
@@ -725,7 +760,7 @@ timing_driven_expand_neighbours(struct s_heap *current,
 	    new_tot_cost = new_back_pcost + astar_fac *
 		get_timing_driven_expected_cost(to_node, target_node,
 						criticality_fac,
-						new_R_upstream) + extra_cost;
+						new_R_upstream);//+ extra_cost;
 
 	    node_to_heap(to_node, new_tot_cost, inode, iconn, new_back_pcost,
 			 new_R_upstream);

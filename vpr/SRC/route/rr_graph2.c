@@ -536,6 +536,8 @@ dump_seg_details(t_seg_details * seg_details,
 	    fprintf(fp, "\n");
 	}
 
+    fprintf(fp, "seg_start: %d\n", get_seg_start(seg_details, 3, 0, 1));
+
     fclose(fp);
 }
 
@@ -1970,19 +1972,10 @@ get_unidir_track_to_chan_seg(INP boolean is_end_sb,
 
     /* Get the target label */
     to_mux = sblock_pattern[sb_x][sb_y][from_side][to_side][from_track];
-
-
-//    assert(sblock_pattern[2][2][from_side][to_side][from_track] == sblock_pattern[3][2][from_side][to_side][from_track]);
     //assert(to_mux != UN_SET);
     if (to_mux == UN_SET) {
     	return 0;
     }
-
-//    if (sb_x == 1 && sb_x == sb_y) {
-//    	to_track = mux_labels[(to_mux + 0) % num_labels];
-//    	if (from_side == 2 && to_side == 0)
-//    	printf("from_side: %d to_side: %d from_track: %d to_track: %d\n", from_side, to_side, from_track, to_track);
-//	}
 
     /* Handle Fs > 3 but assigning consecutive muxes. */
     count = 0;
@@ -2052,42 +2045,7 @@ is_sbox(INP int chan,
     return seg_details[track].sb[ofs];
 }
 
-//int
-//get_branch_direction(INP int chan,
-//	INP int wire_seg,
-//	INP int sb_seg,
-//	INP int track,
-//	INP t_seg_details * seg_details,
-//	INP enum e_directionality directionality)
-//{
-//
-//    int start, length, ofs, fac;
-//
-//    fac = 1;
-//    if(UNI_DIRECTIONAL == directionality)
-//	{
-//	    fac = 2;
-//	}
-//
-//    start = seg_details[track].start;
-//    length = seg_details[track].length;
-//
-//    /* Make sure they gave us correct start */
-//    wire_seg = get_seg_start(seg_details, track, chan, wire_seg);
-//
-//    ofs = sb_seg - wire_seg + 1;	/* Ofset 0 is behind us, so add 1 */
-//
-//    assert(ofs >= 0);
-//    assert(ofs < (length + 1));
-//
-//    /* If unidir segment that is going backwards, we need to flip the ofs */
-//    if((ofs % fac) > 0)
-//	{
-//	    ofs = length - ofs;
-//	}
-//
-//    return seg_details[track].sb[ofs]; //important modification to check whether there's a branch
-//}
+
 
 static void
 get_switch_type(boolean is_from_sbox,
@@ -2454,7 +2412,7 @@ load_sblock_pattern_lookup(INP int i,
 
 //    printf("SB (%d,%d)\n", i, j);
 
-	num_types = seg_details[nodes_per_chan-1].index + 1;
+    num_types = seg_details[nodes_per_chan-1].index + 1;
     offset = my_malloc(sizeof(int)*num_types);
 
     for(to_side = 0; to_side < 4; to_side++)
