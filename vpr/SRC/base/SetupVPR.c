@@ -181,9 +181,9 @@ SetupVPR(INP t_options Options,
 	
 	printf("Building complex block graph \n");
 	alloc_and_load_all_pb_graphs();
-	#ifdef DUMP_PB_GRAPH
+	//#ifdef DUMP_PB_GRAPH
 		echo_pb_graph("pb_graph.echo");
-	#endif
+	//#endif
 
 
     *GraphPause = 1;		/* DEFAULT */

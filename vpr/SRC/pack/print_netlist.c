@@ -15,6 +15,40 @@ static void print_pinnum(FILE * fp,
 
 /********************* Subroutine definitions ********************************/
 
+void print_netlist2()
+{
+	FILE *fp;
+	int i, j, k;
+	int dblock, dport, dpin;
+
+	//fp = fopen(foutput, "w", 0);
+
+	for (i = 0; i < num_nets; i++) {
+		for (j = 0; j <= clb_net[i].num_sinks; j++) {
+			if (j == 0) {
+				dblock = clb_net[i].node_block[j];
+				//dport = clb_net[i].node_block_port[j];
+				dpin = clb_net[i].node_block_pin[j];
+				if (!strcmp(block[dblock].type->name, "clb")) {
+					for (k = 0; k < block[dblock].pb->pb_graph_node->total_pb_pins; k++) {
+						if (block[dblock].pb->rr_graph[k].net_num == clb_to_vpack_net_mapping[i] &&
+							block[dblock].pb->rr_graph[k].pb_graph_pin->parent_node->pb_type->blif_model == NULL &&
+							block[dblock].pb->rr_graph[k].pb_graph_pin->parent_node->parent_pb_graph_node == NULL &&
+							block[dblock].pb->rr_graph[k].pb_graph_pin->port->type == OUT_PORT) {
+							printf("%s %s.%s.%s\n", block[dblock].name, block[dblock].pb->pb_graph_node->pb_type->name,
+
+									block[dblock].pb->rr_graph[k].pb_graph_pin->port->name);
+						}
+					}
+
+				}
+			}
+
+		}
+		printf("\n");
+	}
+}
+
 void
 print_netlist(char *foutput,
 	      char *net_file)
@@ -27,6 +61,8 @@ print_netlist(char *foutput,
     int num_global_nets;
     int num_p_inputs, num_p_outputs;
     FILE *fp;
+    int k;
+    int dblock, dport, dpin;
 
     num_global_nets = 0;
     num_p_inputs = 0;
@@ -79,15 +115,46 @@ print_netlist(char *foutput,
 	    num_blocks, num_nets, num_global_nets);
     fprintf(fp, "\nNet\tName\t\t#Pins\tDriver\t\tRecvs. (block, pin)\n");
 
+    dport = 0;
     for(i = 0; i < num_nets; i++)
 	{
 	    fprintf(fp, "\n%d\t%s\t", i, clb_net[i].name);
 	    if(strlen(clb_net[i].name) < 8)
 		fprintf(fp, "\t");	/* Name field is 16 chars wide */
-	    fprintf(fp, "%d", clb_net[i].num_sinks + 1);
-	    for(j = 0; j <= clb_net[i].num_sinks; j++)
-		fprintf(fp, "\t(%4d,%4d)", clb_net[i].node_block[j],
-			clb_net[i].node_block_pin[j]);
+	    fprintf(fp, "%d ", clb_net[i].num_sinks + 1);
+	    for(j = 0; j <= clb_net[i].num_sinks; j++) {
+	    	if (j == 0) { /* driver */
+	    		dblock = clb_net[i].node_block[j];
+	    		dport = 0;
+	    		for (k = 0; k < block[dblock].pb->pb_graph_node->total_pb_pins; k++) {
+	    			if (block[dblock].pb->rr_graph[k].net_num != OPEN && vpack_to_clb_net_mapping[block[dblock].pb->rr_graph[k].net_num] == i &&
+	    				block[dblock].pb->rr_graph[k].pb_graph_pin->port->type == OUT_PORT && block[dblock].pb->rr_graph[k].pb_graph_pin->parent_node->pb_type->num_modes == 0) {
+//	    				if (block[dblock].pb->rr_graph[k].net_num > dport) {
+//	    					dport = block[dblock].pb->rr_graph[k].net_num;
+//	    				}
+	    				dport++;
+	    				if (!strcmp(block[dblock].pb->rr_graph[k].pb_graph_pin->parent_node->pb_type->blif_model, ".latch")) {
+	    					fprintf(fp, "registered ");
+	    				} else {
+	    					assert(!strcmp(block[dblock].pb->rr_graph[k].pb_graph_pin->parent_node->pb_type->blif_model, ".names") || !strcmp(block[dblock].pb->rr_graph[k].pb_graph_pin->parent_node->pb_type->blif_model, ".input"));
+	    					fprintf(fp, "combinational ");
+	    				}
+	    			}
+	    		}
+	    		assert(dport == 1);
+	    		/*dblock = clb_net[i].node_block[j];
+	    		dport = clb_net[i].node_block_port[j];
+	    		dpin = clb_net[i].node_block_pin[j];
+	    		if (block[dblock].pb->rr_graph[block[dblock].pb->pb_graph_node->input_pins[dport][dpin].pin_count_in_cluster].pb_graph_pin->type == PB_PIN_SEQUENTIAL) {
+	    			fprintf(fp, "registered ");
+	    		} else {
+	    			fprintf(fp, "non-registered ");
+	    		}*/
+	    	}
+	    	fprintf(fp, "\t(%4d,%4d)", clb_net[i].node_block[j],
+	    				clb_net[i].node_block_pin[j]);
+	    }
+
 	}
 
     fprintf(fp, "\nBlock\tName\t\tType\tPin Connections\n\n");

@@ -115,6 +115,8 @@ print_interconnect(int inode,
 			rr_node[inode].pb_graph_pin->port->parent_pb_type->num_modes == 0 &&
 			rr_node[inode].pb_graph_pin->port->type == OUT_PORT) { /* This is a primitive output */
 			print_net_name(rr_node[inode].net_num, column, num_tabs, fpout);
+			//fprintf(fpout, "primitive output here");
+			//fprintf(fpnetlist, "", vpack_net[rr_node[inode].net_num].)
 		} else {
 			name = rr_node[prev_node].pb_graph_pin->output_edges[prev_edge]->interconnect->name;
 			if(rr_node[prev_node].pb_graph_pin->port->parent_pb_type->depth >= rr_node[inode].pb_graph_pin->port->parent_pb_type->depth) {
@@ -286,7 +288,7 @@ print_basic_pb(FILE * fpout,
 	assert(0);
 }
 
-
+FILE *fpnetlist;
 
 static void print_pb(FILE *fpout, t_pb * pb, int pb_index, int tab_depth) {
 
@@ -305,8 +307,14 @@ static void print_pb(FILE *fpout, t_pb * pb, int pb_index, int tab_depth) {
 	print_tabs(fpout, tab_depth);
 	if(pb_type->num_modes == 0) {
 		fprintf(fpout, "<block name=\"%s\" instance=\"%s[%d]\">\n", pb->name, pb_type->name, pb_index);
+		//fprintf(fpnetlist, "<block name=\"%s\" instance=\"%s[%d]\">\n", pb->name, pb_type->name, pb_index);
 	} else {
 		fprintf(fpout, "<block name=\"%s\" instance=\"%s[%d]\" mode=\"%s\">\n", pb->name, pb_type->name, pb_index, mode->name);
+		//if (!strcmp(pb_type->name, "lut")) {
+		//	fprintf(fpnetlist, "!buffered ");
+		//} else if (!strcmp(pb_type->name, "ff")) {
+		//	fprintf(fpnetlist, "buffered ");
+		//}
 	}
 	
 	print_tabs(fpout, tab_depth);
@@ -319,6 +327,7 @@ static void print_pb(FILE *fpout, t_pb * pb, int pb_index, int tab_depth) {
 			for(j = 0; j < pb_type->ports[i].num_pins; j++) {
 				node_index = pb->pb_graph_node->input_pins[port_index][j].pin_count_in_cluster;
 				if(pb_type->parent_mode == NULL) {
+					//fprintf(fpout, "parentmode is null ");
 					print_net_name(rr_node[node_index].net_num, &column, tab_depth, fpout);
 				} else {
 					print_interconnect(node_index, &column, tab_depth + 2, fpout);
@@ -398,7 +407,9 @@ static void print_pb(FILE *fpout, t_pb * pb, int pb_index, int tab_depth) {
 							port_index++;
 						}
 					}
+					//fprintf(fpout, "<WHY AM I HERE>\n");
 					print_open_pb_graph_node(&pb_graph_node->child_pb_graph_nodes[pb->mode][i][j], j, is_used, tab_depth+1, fpout);
+					//fprintf(fpout, "<WHY AM I HERE 2>\n");
 				}
 			}
 		}
@@ -565,6 +576,7 @@ output_clustering(
     int bnum, netnum, column;
 
     fpout = fopen(out_fname, "w");
+    //fpnetlist = fopen("new_netlist_format.net", "w");
 
 	fprintf(fpout, "<block name=\"%s\" instance=\"FPGA_packed_netlist[0]\">\n", out_fname);
 	fprintf(fpout, "\t<inputs>\n\t\t");
@@ -638,6 +650,7 @@ output_clustering(
 	fprintf(fpout, "</block>\n\n");
 
     fclose(fpout);
+    //fclose(fpnetlist);
 
 	print_stats(clb, num_clusters);
 }

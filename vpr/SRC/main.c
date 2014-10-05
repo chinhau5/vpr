@@ -229,6 +229,8 @@ main(int argc,
 	{
 	    read_netlist(FileNameOpts.NetFile, &Arch, &num_blocks, &block, &num_nets, &clb_net);
 	    /* This is done so that all blocks have subblocks and can be treated the same */
+	    //print_netlist("tseng.netlist", "lol");
+	    //print_netlist2();
 	    check_netlist();
 	}
 
